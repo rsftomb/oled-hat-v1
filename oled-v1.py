@@ -242,5 +242,7 @@ while True:
     with canvas(oled_right) as draw:
         draw.text((0,0),  f"WiFi Now: {wifi_now}", fill=255)
         draw.text((0,10), f"WiFi Tot: {wifi_total}", fill=255)
-        draw.text((0,25), f
+        draw.text((0,25), f"BT Now: {bt_now}", fill=255)
+        draw.text((0,35), f"BT Tot: {bt_total}", fill=255)
 
+    time.sleep(2)
