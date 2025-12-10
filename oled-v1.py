@@ -1,152 +1,121 @@
-#!/usr/bin/python3
-# -*- coding:utf-8 -*-
-
+#!/usr/bin/env python3
 import time
-import os
+import psutil
 import subprocess
 from datetime import timedelta
-from PIL import Image, ImageDraw, ImageFont
-import waveshare_OLED.WS_OLED as OLED
+from luma.core.interface.serial import i2c
+from luma.oled.device import ssd1306
+from luma.core.render import canvas
 
 # -----------------------------
-# Utility Functions
+# OLED SCREEN SETUP
 # -----------------------------
+serial_left = i2c(port=1, address=0x3C)
+serial_right = i2c(port=1, address=0x3D)
 
-def get_temp_f():
+oled_left = ssd1306(serial_left)
+oled_right = ssd1306(serial_right)
+
+# Track unique devices seen
+seen_wifi = set()
+seen_bt = set()
+
+# -----------------------------
+# Helper Functions
+# -----------------------------
+def get_ip():
     try:
-        with open("/sys/class/thermal/thermal_zone0/temp") as f:
-            c = int(f.read()) / 1000
-        f_temp = (c * 9/5) + 32
-        return f"{f_temp:.1f}F"
+        ip = subprocess.check_output("hostname -I", shell=True).decode().strip()
+        return ip if ip else "No IP"
     except:
-        return "N/A"
+        return "No IP"
+
+def get_cpu_temp():
+    try:
+        temp_c = subprocess.check_output("vcgencmd measure_temp", shell=True).decode()
+        temp_c = float(temp_c.replace("temp=", "").replace("'C\n", ""))
+        temp_f = (temp_c * 9/5) + 32
+        return f"{temp_f:.1f}F"
+    except:
+        return "?"
 
 def get_uptime():
     try:
-        with open("/proc/uptime") as f:
-            seconds = float(f.read().split()[0])
+        seconds = float(open("/proc/uptime").read().split()[0])
         return str(timedelta(seconds=int(seconds)))
     except:
-        return "N/A"
+        return "?"
 
-def get_input_voltage():
-    # Try Pi5 / Pi4 power supply voltage path
-    paths = [
-        "/sys/class/power_supply/rpi_power_supply/voltage_now",
-    ]
-
-    # Search hwmon for in0_input
-    for root, dirs, files in os.walk("/sys/class/hwmon"):
-        if "in0_input" in files:
-            paths.append(os.path.join(root, "in0_input"))
-
+def get_usb_voltage():
+    # Read Pi input voltage
+    paths = ["/sys/class/power_supply/rpi_power_supply/voltage_now"]
     for p in paths:
         try:
             with open(p) as f:
                 v = int(f.read().strip())
-            # hwmon is in mV, power_supply is in microvolts
-            if v > 10000:  # microvolts
-                return f"{v/1_000_000:.2f}V"
-            else:          # millivolts
-                return f"{v/1000:.2f}V"
+            return f"{v/1_000_000:.2f}V"  # microvolts -> volts
         except:
             pass
-
-    return "N/A"
+    return "?"
 
 def scan_wifi():
+    global seen_wifi
     try:
-        out = subprocess.check_output("iw dev wlan0 scan 2>/dev/null | grep SSID", shell=True).decode()
-        return len(out.splitlines())
+        result = subprocess.check_output("sudo iwlist wlan0 scan 2>/dev/null | grep ESSID", shell=True).decode()
+        count = 0
+        for line in result.splitlines():
+            ssid = line.split("ESSID:")[1].replace('"','').strip()
+            if ssid:
+                seen_wifi.add(ssid)
+                count += 1
+        return count, len(seen_wifi)
     except:
-        return 0
-
-# Bluetooth tracking
-bt_seen = set()
+        return 0, len(seen_wifi)
 
 def scan_bt():
-    global bt_seen
+    global seen_bt
     try:
-        # lescan with --duplicates prevents scan-parameter errors
-        out = subprocess.Popen(
-            ["hcitool", "lescan", "--duplicates"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-
-        time.sleep(3)
-        out.kill()
-
-        lines = out.stdout.read().decode(errors="ignore").splitlines()
-
-        current_devices = set()
-        for l in lines:
-            parts = l.split()
-            if len(parts) >= 1 and ":" in parts[0]:
-                mac = parts[0]
-                current_devices.add(mac)
-                bt_seen.add(mac)
-
-        return len(current_devices), len(bt_seen)
-
+        # Use bluetoothctl for scanning to prevent errors
+        output = subprocess.check_output("timeout 3 bluetoothctl scan on", shell=True, stderr=subprocess.DEVNULL).decode()
+        current = set()
+        for line in output.splitlines():
+            if "Device" in line:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    mac = parts[1]
+                    current.add(mac)
+                    seen_bt.add(mac)
+        return len(current), len(seen_bt)
     except:
-        return 0, len(bt_seen)
+        return 0, len(seen_bt)
 
 # -----------------------------
-# OLED Initialization
-# -----------------------------
-disp = OLED.OLED_3inch5()
-disp.Init()
-disp.clear()
-
-font = ImageFont.load_default()
-
-# -----------------------------
-# Main Loop
+# MAIN LOOP
 # -----------------------------
 while True:
     # Gather data
-    temp_f = get_temp_f()
+    ip = get_ip()
+    cpu = psutil.cpu_percent()
+    temp = get_cpu_temp()
     uptime = get_uptime()
-    usb_v = get_input_voltage()
-    wifi_count = scan_wifi()
-    bt_current, bt_unique = scan_bt()
+    usbv = get_usb_voltage()
+    wifi_now, wifi_total = scan_wifi()
+    bt_now, bt_total = scan_bt()
 
-    # -----------------
-    # Screen 1 (Left)
-    # -----------------
-    image1 = Image.new("1", (128, 64), 0)
-    draw1 = ImageDraw.Draw(image1)
+    # -----------------------------
+    # LEFT SCREEN (System Info)
+    # -----------------------------
+    with canvas(oled_left) as draw:
+        draw.text((0,0),  f"r: {temp}", fill=255)
+        draw.text((0,10), f"CPU: {cpu}%", fill=255)
+        draw.text((0,20), f"IP: {ip}", fill=255)
+        draw.text((0,30), f"Uptime: {uptime}", fill=255)
+        draw.text((0,40), f"USB: {usbv}", fill=255)
 
-    draw1.text((0, 0),  f"r: {temp_f}", font=font, fill=1)
-    draw1.text((0, 12), f"Uptime: {uptime}", font=font, fill=1)
-    draw1.text((0, 24), f"USB: {usb_v}", font=font, fill=1)
-    draw1.text((0, 36), f"WiFi APs: {wifi_count}", font=font, fill=1)
-
-    disp.ShowImage(image1, 0, 0)  # screen 3C
-
-    # -----------------
-    # Screen 2 (Right)
-    # -----------------
-    image2 = Image.new("1", (128, 64), 0)
-    draw2 = ImageDraw.Draw(image2)
-
-    draw2.text((0, 0),  f"BT Current: {bt_current}", font=font, fill=1)
-    draw2.text((0, 12), f"BT Unique:  {bt_unique}", font=font, fill=1)
-
-    disp.ShowImage(image2, 128, 0)  # screen 3D
-
-    # -----------------
-    # Screen 3 (Bottom)
-    # -----------------
-    image3 = Image.new("1", (256, 64), 0)
-    draw3 = ImageDraw.Draw(image3)
-
-    draw3.text((0, 0), "System Status Panel", font=font, fill=1)
-    draw3.text((0, 16), f"Temp: {temp_f} | USB: {usb_v}", font=font, fill=1)
-    draw3.text((0, 32), f"WiFi: {wifi_count} | BT: {bt_unique}", font=font, fill=1)
-    draw3.text((0, 48), f"Uptime: {uptime}", font=font, fill=1)
-
-    disp.ShowImage(image3, 0, 64)
-
-    time.sleep(3)
+    # -----------------------------
+    # RIGHT SCREEN (Wi-Fi / BT Info)
+    # -----------------------------
+    with canvas(oled_right) as draw:
+        draw.text((0,0),  f"WiFi Now: {wifi_now}", fill=255)
+        draw.text((0,10), f"WiFi Tot: {wifi_total}", fill=255)
+        draw.text((0,25), f
