@@ -1,115 +1,129 @@
+#!/usr/bin/env python3
 import time
+import psutil
 import subprocess
+import platform
+from datetime import timedelta
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
-from PIL import Image, ImageDraw, ImageFont
-import psutil
-import socket
-import threading
+from luma.core.render import canvas
 
-# OLED setup
-serial = i2c(port=1, address=0x3C)
-device = ssd1306(serial, width=128, height=64)
-font = ImageFont.load_default()
+# --------------------------------------------------
+# I2C SCREEN SETUP
+# --------------------------------------------------
+serial_left = i2c(port=1, address=0x3C)
+serial_right = i2c(port=1, address=0x3D)
 
-# Sets to store unique networks and Bluetooth devices since boot
+oled_left = ssd1306(serial_left)
+oled_right = ssd1306(serial_right)
+
+# Track previously seen WiFi/Bluetooth devices
 seen_wifi = set()
 seen_bt = set()
 
-# Shared data variables
-wifi_now = 0
-wifi_total = 0
-wifi_signal = "N/A"
-bt_now = 0
-bt_total = 0
-
-# Lock to prevent race conditions
-data_lock = threading.Lock()
+# --------------------------------------------------
+# Helper Functions
+# --------------------------------------------------
 
 def get_ip():
     try:
-        return socket.gethostbyname(socket.gethostname())
+        ip = subprocess.check_output("hostname -I", shell=True).decode().strip()
+        return ip if ip else "No IP"
     except:
         return "No IP"
 
 def get_cpu_temp():
     try:
         temp = subprocess.check_output("vcgencmd measure_temp", shell=True).decode()
-        return temp.replace("temp=","").strip()
+        temp = temp.replace("temp=", "").replace("'C\n", "")
+        return temp
     except:
-        return "N/A"
+        return "?"
 
-def get_cpu_load():
-    return f"{psutil.cpu_percent()}%"
+def get_uptime():
+    try:
+        seconds = float(open("/proc/uptime").read().split()[0])
+        return str(timedelta(seconds=int(seconds)))
+    except:
+        return "?"
 
-def wifi_scanner():
-    global wifi_now, wifi_total, wifi_signal
-    while True:
-        try:
-            output = subprocess.check_output("sudo iwlist wlan0 scan | grep 'ESSID\\|Signal'", shell=True).decode()
-            networks = []
-            signal = "N/A"
-            for line in output.split("\n"):
-                line = line.strip()
-                if line.startswith("ESSID:"):
-                    ssid = line.split(":")[1].strip('"')
-                    networks.append(ssid)
+def get_usb_voltage():
+    try:
+        volt = subprocess.check_output("vcgencmd get_throttled", shell=True).decode().strip()
+        if "0x0" in volt:
+            return "OK"
+        else:
+            return "LOW!"
+    except:
+        return "?"
+
+def scan_wifi():
+    global seen_wifi
+    try:
+        result = subprocess.check_output("sudo iwlist wlan0 scan", shell=True).decode()
+        networks = result.count("ESSID:")
+
+        for line in result.splitlines():
+            if "ESSID:" in line:
+                ssid = line.split(":")[1].replace('"','')
+                if ssid.strip():
                     seen_wifi.add(ssid)
-                elif line.startswith("Quality="):
-                    quality = line.split()[0].split('=')[1]
-                    signal = quality
-            with data_lock:
-                wifi_now = len(networks)
-                wifi_total = len(seen_wifi)
-                wifi_signal = signal
-        except:
-            with data_lock:
-                wifi_now = 0
-                wifi_signal = "N/A"
-        time.sleep(5)
 
-def bt_scanner():
-    global bt_now, bt_total
-    while True:
-        try:
-            subprocess.run("timeout 5s bluetoothctl scan on", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            output = subprocess.check_output("bluetoothctl devices", shell=True).decode()
-            devices = []
-            for line in output.split("\n"):
-                if line.startswith("Device"):
-                    addr = line.split()[1]
-                    devices.append(addr)
-                    seen_bt.add(addr)
-            with data_lock:
-                bt_now = len(devices)
-                bt_total = len(seen_bt)
-        except:
-            with data_lock:
-                bt_now = 0
-        time.sleep(5)
+        return networks, len(seen_wifi)
+    except:
+        return 0, len(seen_wifi)
 
-# Start scanner threads
-threading.Thread(target=wifi_scanner, daemon=True).start()
-threading.Thread(target=bt_scanner, daemon=True).start()
+def scan_bt():
+    global seen_bt
+    try:
+        # Faster and more reliable scan
+        output = subprocess.check_output("sudo hcitool lescan --duplicates --passive", shell=True, timeout=5).decode()
 
-# Main display loop
+        current_devices = set()
+        for line in output.split("\n"):
+            if ":" in line:
+                parts = line.strip().split()
+                mac = parts[0]
+                if len(mac.split(":")) == 6:  # validates BT MAC
+                    current_devices.add(mac)
+                    seen_bt.add(mac)
+
+        return len(current_devices), len(seen_bt)
+    except:
+        return 0, len(seen_bt)
+
+# --------------------------------------------------
+# MAIN LOOP
+# --------------------------------------------------
 while True:
-    image = Image.new("1", (device.width, device.height))
-    draw = ImageDraw.Draw(image)
+    # Collect readings
+    ip = get_ip()
+    cpu = psutil.cpu_percent()
+    temp = get_cpu_temp()
+    uptime = get_uptime()
+    usbv = get_usb_voltage()
 
-    # Top line - CPU info
-    top_line = f"CPU:{get_cpu_load()} T:{get_cpu_temp()} IP:{get_ip()}"
-    draw.text((0, 0), top_line, font=font, fill=255)
+    wifi_now, wifi_total = scan_wifi()
+    bt_now, bt_total = scan_bt()
 
-    # Second line - Wi-Fi signal
-    with data_lock:
-        second_line = f"Wi-Fi Signal:{wifi_signal}"
-    draw.text((0, 10), second_line, font=font, fill=255)
+    # ---------------------------
+    # LEFT SCREEN (SYSTEM INFO)
+    # ---------------------------
+    with canvas(oled_left) as draw:
+        draw.text((0,0), f"Host: {platform.node()}", fill=255)
+        draw.text((0,10), f"IP: {ip}", fill=255)
+        draw.text((0,20), f"CPU: {cpu}%", fill=255)
+        draw.text((0,30), f"T:{temp}C", fill=255)
+        draw.text((0,40), f"Up:{uptime}", fill=255)
+        draw.text((0,50), f"USB:{usbv}", fill=255)
 
-    # Main area - Wi-Fi and Bluetooth stats
-    with data_lock:
-        main_text = f"W-Net:{wifi_now} Total:{wifi_total}\nBT:{bt_now} Total:{bt_total}"
-    draw.text((0, 25), main_text, font=font, fill=255)
+    # ---------------------------
+    # RIGHT SCREEN (SCAN INFO)
+    # ---------------------------
+    with canvas(oled_right) as draw:
+        draw.text((0,0),  f"WiFi Now: {wifi_now}",   fill=255)
+        draw.text((0,10), f"WiFi Tot: {wifi_total}", fill=255)
+        draw.text((0,25), f"BT Now: {bt_now}",       fill=255)
+        draw.text((0,35), f"BT Tot: {bt_total}",     fill=255)
 
-    device.display(image)
-    time.sleep(1)
+    time.sleep(2)
