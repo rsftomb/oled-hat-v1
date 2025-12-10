@@ -106,11 +106,11 @@ while True:
     # LEFT SCREEN (System Info)
     # -----------------------------
     with canvas(oled_left) as draw:
-        draw.text((0,0),  f"r: {temp}", fill=255)
+        draw.text((0,0),  f"Temp: {temp}", fill=255)
         draw.text((0,10), f"CPU: {cpu}%", fill=255)
         draw.text((0,20), f"IP: {ip}", fill=255)
         draw.text((0,30), f"Uptime: {uptime}", fill=255)
-        draw.text((0,40), f"USB: {usbv}", fill=255)
+        draw.text((0,40), f"Batt: {usbv}", fill=255)
 
     # -----------------------------
     # RIGHT SCREEN (Wi-Fi / BT Info)
@@ -230,11 +230,11 @@ while True:
     # LEFT SCREEN (System Info)
     # -----------------------------
     with canvas(oled_left) as draw:
-        draw.text((0,0),  f"r: {temp}", fill=255)
+        draw.text((0,0),  f"Temp: {temp}", fill=255)
         draw.text((0,10), f"CPU: {cpu}%", fill=255)
         draw.text((0,20), f"IP: {ip}", fill=255)
         draw.text((0,30), f"Uptime: {uptime}", fill=255)
-        draw.text((0,40), f"USB: {usbv}", fill=255)
+        draw.text((0,40), f"Batt: {usbv}", fill=255)
 
     # -----------------------------
     # RIGHT SCREEN (Wi-Fi / BT Info)
