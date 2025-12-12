@@ -9,7 +9,7 @@ from luma.oled.device import ssd1306
 from luma.core.render import canvas
 
 # ---------------------------------
-# OLED SCREEN SETUP
+# OLED SETUP
 # ---------------------------------
 serial_left = i2c(port=1, address=0x3C)
 serial_right = i2c(port=1, address=0x3D)
@@ -18,7 +18,7 @@ oled_left = ssd1306(serial_left)
 oled_right = ssd1306(serial_right)
 
 # ---------------------------------
-# Shared Data (Thread Safe)
+# Thread-Safe Shared Data
 # ---------------------------------
 wifi_now = 0
 wifi_total = 0
@@ -31,7 +31,7 @@ seen_bt = set()
 lock = threading.Lock()
 
 # ---------------------------------
-# System Info Functions
+# System Info Helpers
 # ---------------------------------
 def get_ip():
     try:
@@ -65,7 +65,7 @@ def get_usb_voltage():
         return "?"
 
 # ---------------------------------
-# Wi-Fi Scan Thread
+# Wi-Fi Scanner Thread
 # ---------------------------------
 def wifi_scanner():
     global wifi_now, wifi_total
@@ -90,29 +90,32 @@ def wifi_scanner():
         except:
             pass
 
-        time.sleep(5)  # scan interval
+        time.sleep(5)
 
 # ---------------------------------
-# Bluetooth Scan Thread
+# Bluetooth Scanner Thread (Classic + BLE)
 # ---------------------------------
 def bt_scanner():
     global bt_now, bt_total
+
     while True:
+        current = set()
+
         try:
-            # Trigger scan
-            subprocess.run("timeout 3 hcitool scan",
+            # --------------------------
+            # CLASSIC BLUETOOTH SCAN
+            # --------------------------
+            subprocess.run("timeout 4 hcitool scan",
                            shell=True,
                            stdout=subprocess.DEVNULL,
                            stderr=subprocess.DEVNULL)
 
-            # Retrieve discovered devices
-            output = subprocess.check_output(
+            classic_output = subprocess.check_output(
                 "bluetoothctl devices",
                 shell=True
             ).decode()
 
-            current = set()
-            for line in output.splitlines():
+            for line in classic_output.splitlines():
                 if "Device" in line:
                     parts = line.split()
                     if len(parts) >= 2:
@@ -120,23 +123,43 @@ def bt_scanner():
                         current.add(mac)
                         seen_bt.add(mac)
 
-            with lock:
-                bt_now = len(current)
-                bt_total = len(seen_bt)
+            # --------------------------
+            # BLE SCAN (btmgmt find)
+            # --------------------------
+            ble_output = subprocess.check_output(
+                "timeout 4 sudo btmgmt find",
+                shell=True,
+                stderr=subprocess.DEVNULL
+            ).decode()
+
+            for line in ble_output.splitlines():
+                line = line.strip()
+                if line.startswith("hci") and "dev_found" in line:
+                    parts = line.split()
+                    for p in parts:
+                        if ":" in p and len(p.split(":")) == 6:
+                            mac = p
+                            current.add(mac)
+                            seen_bt.add(mac)
 
         except:
             pass
 
+        # Update results
+        with lock:
+            bt_now = len(current)
+            bt_total = len(seen_bt)
+
         time.sleep(5)
 
 # ---------------------------------
-# Start Threads
+# Start Scanner Threads
 # ---------------------------------
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
 # ---------------------------------
-# MAIN LOOP (OLED Refresh Only)
+# MAIN OLED LOOP
 # ---------------------------------
 while True:
     with lock:
@@ -164,4 +187,4 @@ while True:
         draw.text((0,25), f"BT Now: {b_now}", fill=255)
         draw.text((0,35), f"BT Tot: {b_total}", fill=255)
 
-    time.sleep(1)  # smooth screen updates
+    time.sleep(1)
