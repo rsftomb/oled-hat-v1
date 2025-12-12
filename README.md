@@ -5,18 +5,6 @@ Designed for compact wardriving rigs, RF scanning builds, and general Pi diagnos
 
 This script powers two SSD1306 (128×64) I²C OLED displays, pulls device/system stats, and continuously updates live scan data in real time.
 
-📸 Hardware Layout
-
-(Placeholder diagram — I can generate a proper SVG on request)
-
- ┌───────────────────── Pi Zero 2 W ───────────────────────┐
- │                                                         │
- │   I2C Bus                                                │
- │   ├── OLED Left  (0x3C) – System Telemetry              │
- │   └── OLED Right (0x3D) – WiFi / Bluetooth Scanner      │
- │                                                         │
- └─────────────────────────────────────────────────────────┘
-
 ✨ Features
 📡 Wireless Scanning
 
