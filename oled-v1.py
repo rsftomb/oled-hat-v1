@@ -2,27 +2,37 @@
 import time
 import psutil
 import subprocess
+import threading
 from datetime import timedelta
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
 from luma.core.render import canvas
 
-# -----------------------------
+# ---------------------------------
 # OLED SCREEN SETUP
-# -----------------------------
+# ---------------------------------
 serial_left = i2c(port=1, address=0x3C)
 serial_right = i2c(port=1, address=0x3D)
 
 oled_left = ssd1306(serial_left)
 oled_right = ssd1306(serial_right)
 
-# Track unique devices seen
+# ---------------------------------
+# Shared Data (Thread Safe)
+# ---------------------------------
+wifi_now = 0
+wifi_total = 0
+bt_now = 0
+bt_total = 0
+
 seen_wifi = set()
 seen_bt = set()
 
-# -----------------------------
-# Helper Functions
-# -----------------------------
+lock = threading.Lock()
+
+# ---------------------------------
+# System Info Functions
+# ---------------------------------
 def get_ip():
     try:
         ip = subprocess.check_output("hostname -I", shell=True).decode().strip()
@@ -47,65 +57,99 @@ def get_uptime():
         return "?"
 
 def get_usb_voltage():
-    paths = ["/sys/class/power_supply/rpi_power_supply/voltage_now"]
-    for p in paths:
+    try:
+        with open("/sys/class/power_supply/rpi_power_supply/voltage_now") as f:
+            v = int(f.read().strip())
+        return f"{v/1_000_000:.2f}V"
+    except:
+        return "?"
+
+# ---------------------------------
+# Wi-Fi Scan Thread
+# ---------------------------------
+def wifi_scanner():
+    global wifi_now, wifi_total
+    while True:
         try:
-            with open(p) as f:
-                v = int(f.read().strip())
-            return f"{v/1_000_000:.2f}V"  # microvolts -> volts
+            result = subprocess.check_output(
+                "sudo iwlist wlan0 scan 2>/dev/null | grep ESSID",
+                shell=True
+            ).decode()
+
+            count = 0
+            for line in result.splitlines():
+                ssid = line.split("ESSID:")[1].replace('"','').strip()
+                if ssid:
+                    seen_wifi.add(ssid)
+                    count += 1
+
+            with lock:
+                wifi_now = count
+                wifi_total = len(seen_wifi)
+
         except:
             pass
-    return "?"
 
-def scan_wifi():
-    global seen_wifi
-    try:
-        result = subprocess.check_output("sudo iwlist wlan0 scan 2>/dev/null | grep ESSID", shell=True).decode()
-        count = 0
-        for line in result.splitlines():
-            ssid = line.split("ESSID:")[1].replace('"','').strip()
-            if ssid:
-                seen_wifi.add(ssid)
-                count += 1
-        return count, len(seen_wifi)
-    except:
-        return 0, len(seen_wifi)
+        time.sleep(5)  # scan interval
 
-def scan_bt():
-    global seen_bt
-    try:
-        # Trigger a short scan for 3 seconds
-        subprocess.run("timeout 3 hcitool scan", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # List currently discovered devices
-        output = subprocess.check_output("bluetoothctl devices", shell=True).decode()
-        current = set()
-        for line in output.splitlines():
-            if "Device" in line:
-                parts = line.strip().split()
-                if len(parts) >= 2:
-                    mac = parts[1]
-                    current.add(mac)
-                    seen_bt.add(mac)
-        return len(current), len(seen_bt)
-    except:
-        return 0, len(seen_bt)
+# ---------------------------------
+# Bluetooth Scan Thread
+# ---------------------------------
+def bt_scanner():
+    global bt_now, bt_total
+    while True:
+        try:
+            # Trigger scan
+            subprocess.run("timeout 3 hcitool scan",
+                           shell=True,
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
 
-# -----------------------------
-# MAIN LOOP
-# -----------------------------
+            # Retrieve discovered devices
+            output = subprocess.check_output(
+                "bluetoothctl devices",
+                shell=True
+            ).decode()
+
+            current = set()
+            for line in output.splitlines():
+                if "Device" in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        mac = parts[1]
+                        current.add(mac)
+                        seen_bt.add(mac)
+
+            with lock:
+                bt_now = len(current)
+                bt_total = len(seen_bt)
+
+        except:
+            pass
+
+        time.sleep(5)
+
+# ---------------------------------
+# Start Threads
+# ---------------------------------
+threading.Thread(target=wifi_scanner, daemon=True).start()
+threading.Thread(target=bt_scanner, daemon=True).start()
+
+# ---------------------------------
+# MAIN LOOP (OLED Refresh Only)
+# ---------------------------------
 while True:
-    # Gather data
+    with lock:
+        w_now, w_total = wifi_now, wifi_total
+        b_now, b_total = bt_now, bt_total
+
     ip = get_ip()
-    cpu = psutil.cpu_percent(interval=1)
+    cpu = psutil.cpu_percent(interval=0.5)
     temp = get_cpu_temp()
     uptime = get_uptime()
     usbv = get_usb_voltage()
-    wifi_now, wifi_total = scan_wifi()
-    bt_now, bt_total = scan_bt()
 
-    # -----------------------------
-    # LEFT SCREEN (System Info)
-    # -----------------------------
+    # LEFT DISPLAY
     with canvas(oled_left) as draw:
         draw.text((0, 0),  f"Temp: {temp}", fill=255)
         draw.text((0,10), f"CPU: {cpu:.1f}%", fill=255)
@@ -113,13 +157,11 @@ while True:
         draw.text((0,30), f"Uptime: {uptime}", fill=255)
         draw.text((0,40), f"Batt: {usbv}", fill=255)
 
-    # -----------------------------
-    # RIGHT SCREEN (Wi-Fi / BT Info)
-    # -----------------------------
+    # RIGHT DISPLAY
     with canvas(oled_right) as draw:
-        draw.text((0,0),  f"WiFi Now: {wifi_now}", fill=255)
-        draw.text((0,10), f"WiFi Tot: {wifi_total}", fill=255)
-        draw.text((0,25), f"BT Now: {bt_now}", fill=255)
-        draw.text((0,35), f"BT Tot: {bt_total}", fill=255)
+        draw.text((0,0),  f"WiFi Now: {w_now}", fill=255)
+        draw.text((0,10), f"WiFi Tot: {w_total}", fill=255)
+        draw.text((0,25), f"BT Now: {b_now}", fill=255)
+        draw.text((0,35), f"BT Tot: {b_total}", fill=255)
 
-    time.sleep(2)
+    time.sleep(1)  # smooth screen updates
