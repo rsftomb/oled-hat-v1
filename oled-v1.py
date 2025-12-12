@@ -59,27 +59,28 @@ def get_usb_voltage():
     except:
         return "?"
 
-# Wi-Fi scanner thread (improved)
+# Wi-Fi scanner thread (reliable for Pi Zero2W)
 def wifi_scanner():
     global wifi_now, wifi_total
     while True:
         try:
-            # Use iw dev wlan0 scan to be faster/more reliable
             result = subprocess.check_output(
-                "sudo iw dev wlan0 scan | grep SSID",
+                "sudo iwlist wlan0 scan 2>/dev/null | grep ESSID",
                 shell=True
             ).decode()
             count = 0
             for line in result.splitlines():
-                ssid = line.split("SSID:")[1].strip()
-                if ssid:
+                ssid = line.split("ESSID:")[1].replace('"','').strip()
+                if ssid:  # skip empty SSIDs
                     seen_wifi.add(ssid)
                     count += 1
             with lock:
                 wifi_now = count
                 wifi_total = len(seen_wifi)
         except:
-            pass
+            # silently ignore scan errors
+            with lock:
+                wifi_now = 0
         time.sleep(5)
 
 
@@ -160,6 +161,7 @@ while True:
         draw.text((10,45), f"BT Tot: {b_total}", fill=255)
 
     time.sleep(1)
+
 
 
 
