@@ -107,20 +107,19 @@ def bt_scanner():
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
-# Icon drawing functions (better designs)
+# Icon drawing functions
 def draw_wifi_icon(draw, x, y):
-    # 3 bars increasing in height
-    draw.rectangle((x+2, y+6, x+4, y+6), fill=255)  # small dot
-    draw.rectangle((x, y+3, x+6, y+6), outline=255)  # medium bar
-    draw.rectangle((x-1, y, x+7, y+5), outline=255)  # large bar
+    draw.line((x, y+6, x+4, y+2), fill=255)
+    draw.line((x+1, y+6, x+5, y+2), fill=255)
+    draw.line((x+2, y+6, x+6, y+2), fill=255)
+    draw.line((x+3, y+6, x+7, y+2), fill=255)
+    draw.rectangle((x+3, y+7, x+4, y+8), fill=255)
 
 def draw_bt_icon(draw, x, y):
-    # Simplified Bluetooth logo shape
-    draw.line((x+2, y, x+2, y+14), fill=255)
-    draw.line((x+2, y, x+7, y+5), fill=255)
-    draw.line((x+2, y, x-3, y+5), fill=255)
-    draw.line((x+2, y+14, x+7, y+9), fill=255)
-    draw.line((x+2, y+14, x-3, y+9), fill=255)
+    draw.line((x, y, x+3, y+3), fill=255)
+    draw.line((x+3, y+3, x, y+6), fill=255)
+    draw.line((x, y, x+3, y+6), fill=255)
+    draw.line((x, y+3, x+3, y+3), fill=255)
 
 # Main OLED loop
 while True:
