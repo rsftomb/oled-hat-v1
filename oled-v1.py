@@ -178,7 +178,7 @@ while True:
         draw.text((0,10), f"CPU: {cpu:.1f}%", fill=255)
         draw.text((0,20), f"IP: {ip}", fill=255)
         draw.text((0,30), f"Uptime: {uptime}", fill=255)
-        draw.text((0,40), f"Batt: {usbv}", fill=255)
+        draw.text((0,40), f"Batt Volt: {usbv}", fill=255)
 
     # RIGHT DISPLAY
     with canvas(oled_right) as draw:
@@ -188,3 +188,4 @@ while True:
         draw.text((0,35), f"BT Tot: {b_total}", fill=255)
 
     time.sleep(1)
+
