@@ -87,70 +87,11 @@ def bt_scanner():
         current = set()
         try:
             subprocess.run("bluetoothctl scan on", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(4)
+            time.sleep(6)
+            subprocess.run("bluetoothctl scan off", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             output = subprocess.check_output("bluetoothctl devices", shell=True).decode()
             for line in output.splitlines():
                 if line.startswith("Device"):
                     parts = line.strip().split()
                     if len(parts) >= 2:
                         mac = parts[1]
-                        current.add(mac)
-                        seen_bt.add(mac)
-        except:
-            pass
-        with lock:
-            bt_now = len(current)
-            bt_total = len(seen_bt)
-        time.sleep(5)
-
-# Start threads
-threading.Thread(target=wifi_scanner, daemon=True).start()
-threading.Thread(target=bt_scanner, daemon=True).start()
-
-# Icon drawing functions
-def draw_wifi_icon(draw, x, y):
-    draw.line((x, y+6, x+4, y+2), fill=255)
-    draw.line((x+1, y+6, x+5, y+2), fill=255)
-    draw.line((x+2, y+6, x+6, y+2), fill=255)
-    draw.line((x+3, y+6, x+7, y+2), fill=255)
-    draw.rectangle((x+3, y+7, x+4, y+8), fill=255)
-
-def draw_bt_icon(draw, x, y):
-    draw.line((x, y, x+3, y+3), fill=255)
-    draw.line((x+3, y+3, x, y+6), fill=255)
-    draw.line((x, y, x+3, y+6), fill=255)
-    draw.line((x, y+3, x+3, y+3), fill=255)
-
-# Main OLED loop
-while True:
-    with lock:
-        w_now, w_total = wifi_now, wifi_total
-        b_now, b_total = bt_now, bt_total
-
-    ip = get_ip()
-    cpu = psutil.cpu_percent(interval=0.5)
-    temp = get_cpu_temp()
-    uptime = get_uptime()
-    usbv = get_usb_voltage()
-
-    # LEFT DISPLAY
-    with canvas(oled_left) as draw:
-        draw.text((0, 0),  f" Temp: {temp}", fill=255)
-        draw.text((0,10), f" CPU: {cpu:.1f}%", fill=255)
-        draw.text((0,20), f" IP: {ip}", fill=255)
-        draw.text((0,30), f" Uptime: {uptime}", fill=255)
-        draw.text((0,40), f" Batt: {usbv}", fill=255)
-
-    # RIGHT DISPLAY with icons
-    with canvas(oled_right) as draw:
-        draw_wifi_icon(draw, 0, 0)
-        draw.text((10,0),  f"WiFi Now: {w_now}", fill=255)
-        draw.text((10,10), f"WiFi Tot: {w_total}", fill=255)
-
-        draw_bt_icon(draw, 0, 25)
-        draw.text((10,25), f"BT Now: {b_now}", fill=255)
-        draw.text((10,35), f"BT Tot: {b_total}", fill=255)
-
-    time.sleep(1)
-
-
