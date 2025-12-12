@@ -136,7 +136,7 @@ while True:
 
     # LEFT DISPLAY (shifted down, added User)
     with canvas(oled_left) as draw:
-        draw.text((0, 0),  "User: jleary53", fill=255)
+        draw.text((0, 0),  " User: jleary53", fill=255)
         draw.text((0,10), f" Temp: {temp}", fill=255)
         draw.text((0,20), f" CPU: {cpu:.1f}%", fill=255)
         draw.text((0,30), f" IP: {ip}", fill=255)
@@ -145,7 +145,7 @@ while True:
 
     # RIGHT DISPLAY (shifted down, added device name)
     with canvas(oled_right) as draw:
-        draw.text((0,0), "Device: warscanner", fill=255)
+        draw.text((0,0), "Mode: Wardrive", fill=255)
         draw_wifi_icon(draw, 0, 10)
         draw.text((10,10),  f"WiFi Now: {w_now}", fill=255)
         draw.text((10,20), f"WiFi Tot: {w_total}", fill=255)
@@ -155,3 +155,4 @@ while True:
         draw.text((10,45), f"BT Tot: {b_total}", fill=255)
 
     time.sleep(1)
+
