@@ -58,18 +58,19 @@ def get_usb_voltage():
     except:
         return "?"
 
-# Wi-Fi scanner thread
+# Wi-Fi scanner thread (improved)
 def wifi_scanner():
     global wifi_now, wifi_total
     while True:
         try:
+            # Use iw dev wlan0 scan to be faster/more reliable
             result = subprocess.check_output(
-                "sudo iwlist wlan0 scan 2>/dev/null | grep ESSID",
+                "sudo iw dev wlan0 scan | grep SSID",
                 shell=True
             ).decode()
             count = 0
             for line in result.splitlines():
-                ssid = line.split("ESSID:")[1].replace('"','').strip()
+                ssid = line.split("SSID:")[1].strip()
                 if ssid:
                     seen_wifi.add(ssid)
                     count += 1
@@ -80,16 +81,19 @@ def wifi_scanner():
             pass
         time.sleep(5)
 
-# Bluetooth scanner thread
+
+# Bluetooth scanner thread (improved)
 def bt_scanner():
     global bt_now, bt_total, seen_bt
     while True:
         current = set()
         try:
-            subprocess.run("bluetoothctl scan on", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(6)
-            subprocess.run("bluetoothctl scan off", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            output = subprocess.check_output("bluetoothctl devices", shell=True).decode()
+            # Use bluetoothctl in a single shell session for better scanning
+            scan_cmds = """
+echo -e 'scan on\ndevices\nscan off' | bluetoothctl
+"""
+            output = subprocess.check_output(scan_cmds, shell=True, stderr=subprocess.DEVNULL).decode()
+
             for line in output.splitlines():
                 if line.startswith("Device"):
                     parts = line.strip().split()
@@ -155,4 +159,5 @@ while True:
         draw.text((10,45), f"BT Tot: {b_total}", fill=255)
 
     time.sleep(1)
+
 
