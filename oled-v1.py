@@ -52,9 +52,10 @@ def get_uptime():
 
 def get_usb_voltage():
     try:
-        with open("/sys/class/power_supply/rpi_power_supply/voltage_now") as f:
-            v = int(f.read().strip())
-        return f"{v/1_000_000:.2f}V"
+        # vcgencmd measure_volts returns something like "volt=5.05V"
+        output = subprocess.check_output("vcgencmd measure_volts", shell=True).decode().strip()
+        volts = output.split('=')[1].replace('V','')
+        return f"{float(volts):.2f}V"
     except:
         return "?"
 
@@ -159,5 +160,6 @@ while True:
         draw.text((10,45), f"BT Tot: {b_total}", fill=255)
 
     time.sleep(1)
+
 
 
