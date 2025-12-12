@@ -3,6 +3,7 @@ import time
 import psutil
 import subprocess
 import threading
+import random
 from datetime import timedelta
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
@@ -11,7 +12,6 @@ from luma.core.render import canvas
 # OLED setup
 serial_left = i2c(port=1, address=0x3C)
 serial_right = i2c(port=1, address=0x3D)
-
 oled_left = ssd1306(serial_left)
 oled_right = ssd1306(serial_right)
 
@@ -20,10 +20,8 @@ wifi_now = 0
 wifi_total = 0
 bt_now = 0
 bt_total = 0
-
 seen_wifi = set()
 seen_bt = set()
-
 lock = threading.Lock()
 
 # System info helpers
@@ -58,30 +56,7 @@ def get_usb_voltage():
     except:
         return "?"
 
-# --- EYE ANIMATION FRAMES ---
-def draw_eyes_center(draw):
-    draw.ellipse((20, 20, 40, 40), outline=255, fill=0)
-    draw.ellipse((60, 20, 80, 40), outline=255, fill=0)
-    draw.ellipse((28, 28, 34, 34), outline=255, fill=255)
-    draw.ellipse((68, 28, 74, 34), outline=255, fill=255)
-
-def draw_eyes_left(draw):
-    draw.ellipse((20, 20, 40, 40), outline=255, fill=0)
-    draw.ellipse((60, 20, 80, 40), outline=255, fill=0)
-    draw.ellipse((24, 28, 30, 34), outline=255, fill=255)
-    draw.ellipse((64, 28, 70, 34), outline=255, fill=255)
-
-def draw_eyes_right(draw):
-    draw.ellipse((20, 20, 40, 40), outline=255, fill=0)
-    draw.ellipse((60, 20, 80, 40), outline=255, fill=0)
-    draw.ellipse((32, 28, 38, 34), outline=255, fill=255)
-    draw.ellipse((72, 28, 78, 34), outline=255, fill=255)
-
-def draw_eyes_blink(draw):
-    draw.rectangle((20, 28, 40, 32), fill=255)
-    draw.rectangle((60, 28, 80, 32), fill=255)
-
-# --- Wi-Fi scanner ---
+# Wi-Fi scanner
 def wifi_scanner():
     global wifi_now, wifi_total
     while True:
@@ -104,31 +79,29 @@ def wifi_scanner():
                 wifi_now = 0
         time.sleep(5)
 
-# --- Bluetooth scanner ---
+# Bluetooth scanner
 def bt_scanner():
-    global bt_now, bt_total
+    global bt_now, bt_total, seen_bt
     while True:
         current = set()
         try:
-            scan_cmds = """
-echo -e 'scan on\ndevices\nscan off' | bluetoothctl
-"""
+            scan_cmds = "echo -e 'scan on\ndevices\nscan off' | bluetoothctl"
             output = subprocess.check_output(scan_cmds, shell=True, stderr=subprocess.DEVNULL).decode()
-
             for line in output.splitlines():
                 if line.startswith("Device"):
-                    mac = line.split()[1]
-                    current.add(mac)
-                    seen_bt.add(mac)
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        mac = parts[1]
+                        current.add(mac)
+                        seen_bt.add(mac)
         except:
             pass
-
         with lock:
             bt_now = len(current)
             bt_total = len(seen_bt)
         time.sleep(5)
 
-# Start threads
+# Start scanner threads
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
@@ -146,37 +119,68 @@ def draw_bt_icon(draw, x, y):
     draw.line((x, y, x+3, y+6), fill=255)
     draw.line((x, y+3, x+3, y+3), fill=255)
 
-# --- Main Loop with Animation ---
+# Eye animations
+def normal_center(draw):
+    draw.ellipse((20, 10, 60, 50), outline=255, fill=0)
+    draw.ellipse((35, 25, 45, 35), fill=255)
+def normal_left(draw):
+    draw.ellipse((20, 10, 60, 50), outline=255, fill=0)
+    draw.ellipse((28, 25, 38, 35), fill=255)
+def normal_right(draw):
+    draw.ellipse((20, 10, 60, 50), outline=255, fill=0)
+    draw.ellipse((42, 25, 52, 35), fill=255)
+def angry_center(draw):
+    draw.line((20, 5, 60, 18), fill=255)
+    draw.ellipse((20, 18, 60, 58), outline=255, fill=0)
+    draw.ellipse((35, 35, 45, 45), fill=255)
+def angry_left(draw):
+    draw.line((20, 5, 60, 18), fill=255)
+    draw.ellipse((20, 18, 60, 58), outline=255, fill=0)
+    draw.ellipse((28, 35, 38, 45), fill=255)
+def angry_right(draw):
+    draw.line((20, 5, 60, 18), fill=255)
+    draw.ellipse((20, 18, 60, 58), outline=255, fill=0)
+    draw.ellipse((42, 35, 52, 45), fill=255)
+def sleepy_center(draw):
+    draw.line((20, 25, 60, 25), fill=255)
+    draw.line((20, 28, 60, 28), fill=255)
+def sleepy_blink(draw):
+    draw.rectangle((20, 25, 60, 30), fill=255)
+def blink(draw):
+    draw.rectangle((20, 25, 60, 30), fill=255)
+
+EYE_MODES = {
+    "normal": [normal_center, normal_left, normal_right, normal_center, blink, normal_center],
+    "angry": [angry_center, angry_left, angry_right, angry_center, blink, angry_center],
+    "sleepy": [sleepy_center, sleepy_blink, sleepy_center]
+}
+
+# Main loop
 MODE_TIME_INFO = 15
 MODE_TIME_EYES = 5
-
 last_switch = time.time()
 mode = "info"
+current_emotion = "normal"
 
 while True:
-
-    # Switch mode every 15s/5s
     if mode == "info" and time.time() - last_switch > MODE_TIME_INFO:
         mode = "eyes"
         last_switch = time.time()
+        current_emotion = random.choice(["normal","angry","sleepy"])
     elif mode == "eyes" and time.time() - last_switch > MODE_TIME_EYES:
         mode = "info"
         last_switch = time.time()
 
-    # --- NORMAL MODE ---
     if mode == "info":
-
         with lock:
             w_now, w_total = wifi_now, wifi_total
             b_now, b_total = bt_now, bt_total
-
         ip = get_ip()
         cpu = psutil.cpu_percent(interval=0.5)
         temp = get_cpu_temp()
         uptime = get_uptime()
         usbv = get_usb_voltage()
 
-        # LEFT DISPLAY
         with canvas(oled_left) as draw:
             draw.text((0, 0),  " User: jleary53", fill=255)
             draw.text((0,10), f" Temp: {temp}", fill=255)
@@ -185,7 +189,6 @@ while True:
             draw.text((0,40), f" Uptime: {uptime}", fill=255)
             draw.text((0,50), f" Batt: {usbv}", fill=255)
 
-        # RIGHT DISPLAY
         with canvas(oled_right) as draw:
             draw.text((0,0), "Mode: Wardrive", fill=255)
             draw_wifi_icon(draw, 0, 10)
@@ -194,21 +197,10 @@ while True:
             draw_bt_icon(draw, 0, 35)
             draw.text((10,35), f"BT Now: {b_now}", fill=255)
             draw.text((10,45), f"BT Tot: {b_total}", fill=255)
-
         time.sleep(1)
 
-    # --- EYES ANIMATION MODE ---
     else:
-
-        frames = [
-            draw_eyes_center,
-            draw_eyes_left,
-            draw_eyes_right,
-            draw_eyes_center,
-            draw_eyes_blink,
-            draw_eyes_center
-        ]
-
+        frames = EYE_MODES[current_emotion]
         for frame in frames:
             if mode != "eyes":
                 break
