@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "v1.22"
+VERSION = "v1.23"
 
 # =====================
 # OLED setup
@@ -189,9 +189,14 @@ angle = 0
 
 while True:
     now = time.time()
-    if now - mode_time > 5:
-        radar_mode = not radar_mode
-        mode_time = now
+if radar_mode and now - mode_time > 5:
+    radar_mode = False
+    mode_time = now
+
+elif not radar_mode and now - mode_time > 10:
+    radar_mode = True
+    mode_time = now
+
 
     with lock:
         w_now = wifi_now
