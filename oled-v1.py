@@ -207,7 +207,7 @@ while True:
 
     # LEFT OLED
     with canvas(oled_left) as draw:
-        draw.text((0, 0), "User: jleary53", fill=255)
+        draw.text((0, 0), "WiGLE: jleary53", fill=255)
         draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
         draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         draw.text((0,30), f"Up: {get_uptime()}", fill=255)
