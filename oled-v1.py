@@ -97,12 +97,11 @@ def wifi_scanner():
         time.sleep(5)
 
 # =====================
-# Bluetooth scanner (FIXED)
+# Bluetooth scanner (stable)
 # =====================
 def bt_scanner():
     global bt_now, bt_total
 
-    # Start scan once
     subprocess.Popen(
         "bluetoothctl scan on",
         shell=True,
@@ -117,29 +116,26 @@ def bt_scanner():
                 shell=True
             ).decode()
 
-            current = {}
             now_ts = time.time()
 
             for line in out.splitlines():
                 if line.startswith("Device"):
                     parts = line.split(maxsplit=2)
-                    if len(parts) >= 2:
-                        mac = parts[1]
-                        name = parts[2] if len(parts) == 3 else "Unknown"
-                        current[mac] = name
-                        seen_bt[mac] = name
-                        bt_last_seen[mac] = now_ts
+                    mac = parts[1]
+                    name = parts[2] if len(parts) == 3 else "Unknown"
 
-                        # Stable radar blip per device
-                        if mac not in bt_blips:
-                            bt_blips[mac] = (
-                                random.randint(-14,14),
-                                random.randint(-14,14)
-                            )
+                    seen_bt[mac] = name
+                    bt_last_seen[mac] = now_ts
+
+                    if mac not in bt_blips:
+                        bt_blips[mac] = (
+                            random.randint(-14, 14),
+                            random.randint(-14, 14)
+                        )
         except:
             pass
 
-        # Remove stale devices (>15s unseen)
+        # prune stale devices
         for mac in list(bt_last_seen.keys()):
             if time.time() - bt_last_seen[mac] > 15:
                 bt_last_seen.pop(mac, None)
@@ -170,7 +166,7 @@ def draw_wifi_bars(draw, level):
             draw.rectangle((x+i*10, base-h, x+i*10+6, base), outline=255)
 
 def draw_radar(draw, angle, blips):
-    cx, cy, r = 70, 32, 28  # shifted right
+    cx, cy, r = 70, 32, 28
     draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=255)
 
     x = cx + int(r * math.cos(angle))
@@ -181,7 +177,7 @@ def draw_radar(draw, angle, blips):
         draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
 
 # =====================
-# Display loop
+# Display loop (FIXED)
 # =====================
 radar_mode = True
 mode_time = time.time()
@@ -189,21 +185,21 @@ angle = 0
 
 while True:
     now = time.time()
-if radar_mode and now - mode_time > 5:
-    radar_mode = False
-    mode_time = now
 
-elif not radar_mode and now - mode_time > 10:
-    radar_mode = True
-    mode_time = now
+    # mode timing
+    if radar_mode and now - mode_time > 5:
+        radar_mode = False
+        mode_time = now
 
+    elif not radar_mode and now - mode_time > 10:
+        radar_mode = True
+        mode_time = now
 
     with lock:
         w_now = wifi_now
         w_total = wifi_total
         b_now = bt_now
         b_total = bt_total
-
         blips = list(bt_blips.values())
 
         rand_ssid = random.choice(list(seen_wifi)) if seen_wifi else "None"
