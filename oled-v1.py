@@ -10,7 +10,7 @@ from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
 from luma.core.render import canvas
 
-VERSION = "v1.1"
+VERSION = "v1.2"
 
 # ---------------------------
 # OLED setup
@@ -147,7 +147,7 @@ threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
 # ---------------------------
-# Icon drawing functions
+# Icon and animation drawing
 # ---------------------------
 def draw_wifi_icon(draw, x, y):
     draw.line((x, y+6, x+4, y+2), fill=255)
@@ -162,7 +162,6 @@ def draw_bt_icon(draw, x, y):
     draw.line((x, y, x+3, y+6), fill=255)
     draw.line((x, y+3, x+3, y+3), fill=255)
 
-# Radar + Wi-Fi animation frames
 def draw_wifi_bars(draw, level):
     x = 0
     base_y = 50
@@ -193,6 +192,8 @@ def draw_radar(draw, sweep_angle, devices, signals):
 # ---------------------------
 sweep_angle = 0.0
 radar_increment = math.pi / 30
+cycle_state = True  # True: radar, False: info
+cycle_timer = time.time()
 
 while True:
     with lock:
@@ -209,25 +210,39 @@ while True:
     uptime = get_uptime()
     usbv = get_usb_voltage()
 
-    # LEFT OLED
+    # LEFT OLED (always show static info)
     with canvas(oled_left) as draw:
         draw.text((0, 0), f"User: jleary53", fill=255)
         draw.text((0,10), f"Version: {VERSION}", fill=255)
         draw.text((0,20), f"Temp: {temp}", fill=255)
         draw.text((0,30), f"CPU: {cpu:.1f}%", fill=255)
-        draw.text((0,40), f"IP: {ip}", fill=255)
-        draw.text((0,50), f"Uptime: {uptime}", fill=255)
-        draw.text((0,60), f"Batt: {usbv}", fill=255)
-        draw.text((0,70), f"SSID: {ssid_display}", fill=255)
+        draw.text((0,40), f"Uptime: {uptime}", fill=255)
+        draw.text((0,50), f"Batt: {usbv}", fill=255)
 
-    # RIGHT OLED
+    # RIGHT OLED (cycle every 5 seconds)
+    now = time.time()
+    if now - cycle_timer >= 5:
+        cycle_state = not cycle_state
+        cycle_timer = now
+
     with canvas(oled_right) as draw:
         draw.text((0,0), "Mode: Wardrive", fill=255)
-        draw_wifi_bars(draw, w_now % 5)
-        draw_radar(draw, sweep_angle, devices, signals)
-        draw_bt_icon(draw, 0, 55)
-        draw.text((10,55), f"BT: {bt_display}", fill=255)
-        draw.text((10,65), f"BT Now: {b_now} Tot: {b_total}", fill=255)
+        if cycle_state:
+            # Radar + SSID/BT names
+            draw_wifi_bars(draw, w_now % 5)
+            draw_radar(draw, sweep_angle, devices, signals)
+            draw.text((0,55), f"SSID: {ssid_display}", fill=255)
+            draw.text((0,65), f"IP: {ip}", fill=255)
+        else:
+            # Classic info
+            draw_wifi_icon(draw, 0, 10)
+            draw.text((10,10),  f"WiFi Now: {w_now}", fill=255)
+            draw.text((10,20), f"WiFi Tot: {w_total}", fill=255)
+            draw_bt_icon(draw, 0, 35)
+            draw.text((10,35), f"BT Now: {b_now}", fill=255)
+            draw.text((10,45), f"BT Tot: {b_total}", fill=255)
+            draw.text((10,55), f"BT: {bt_display}", fill=255)
+            draw.text((10,65), f"IP: {ip}", fill=255)
 
     sweep_angle += radar_increment
     if sweep_angle > 2*math.pi:
