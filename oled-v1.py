@@ -224,7 +224,7 @@ while True:
             draw.text((0,10), f"BT: {b_now}/{b_total}", fill=255)
             draw.text((0,20), f"IP: {get_ip()}", fill=255)
             draw.text((0,30), f"SSID: {rand_ssid[:16]}", fill=255)
-            draw.text((0,40), f"BTdev: {rand_bt[:16]}", fill=255)
+            draw.text((0,40), f"Bluetooth: {rand_bt[:16]}", fill=255)
 
     angle += 0.15
     time.sleep(0.2)
