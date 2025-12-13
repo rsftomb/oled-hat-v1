@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "oled-hat-v1"
+VERSION = "v1.22"
 
 # =====================
 # OLED setup
@@ -211,7 +211,7 @@ while True:
         draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         draw.text((0,30), f"Up: {get_uptime()}", fill=255)
         draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
-        draw.text((0,50), f"Ver: {VERSION}", fill=255)
+        draw.text((0,50), f"Version: {VERSION}", fill=255)
 
     # RIGHT OLED
     with canvas(oled_right) as draw:
