@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "0129"
+VERSION = "1214.05"
 
 # =====================
 # OLED setup
@@ -175,6 +175,7 @@ def draw_radar(draw, angle, blips):
 radar_mode = True
 mode_time = time.time()
 angle = 0
+scroll_pos = 0
 
 while True:
     now = time.time()
@@ -203,16 +204,13 @@ while True:
         draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
         draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-        
-        # SD card health instead of voltage
         try:
             u = psutil.disk_usage("/")
             free = u.free / (1024**3)
-            sd_health = f"SD Health {u.percent:.0f}% {free:.1f}G"
+            sd_health = f"SD Use {u.percent:.0f}% {free:.1f}G"
         except:
             sd_health = "SD ERR"
         draw.text((0,40), sd_health, fill=255)
-        
         draw.text((0,50), f"Build#: {VERSION}", fill=255)
 
     # RIGHT OLED
@@ -247,6 +245,12 @@ while True:
             # Random BT
             bt_str = f"Bluetooth: {rand_bt[:16]}"
             draw.text((0,40), bt_str, fill=255)
+
+            # Mode scrolling
+            mode_text = "Mode: Wardriver Scanning   "
+            display_text = mode_text[scroll_pos:] + mode_text[:scroll_pos]
+            draw.text((0,50), display_text[:20], fill=255)
+            scroll_pos = (scroll_pos + 1) % len(mode_text)
 
     angle += 0.15
     time.sleep(0.2)
