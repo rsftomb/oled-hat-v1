@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "0128"
+VERSION = "0129"
 
 # =====================
 # OLED setup
@@ -223,13 +223,13 @@ while True:
             draw_wifi_bars(draw, w_now % 5)
         else:
             # Wi-Fi
-            wifi_line = f"WiFi Current: {w_now} Total: {w_total}"
+            wifi_line = f"WiFi Now:{w_now} T:{w_total}"
             if len(wifi_line) > 20:
                 wifi_line = wifi_line[:20] + "..."
             draw.text((0,0), wifi_line, fill=255)
 
             # Bluetooth
-            bt_line = f"BT Current: {b_now} Total: {b_total}"
+            bt_line = f"BT Now: {b_now} T: {b_total}"
             if len(bt_line) > 20:
                 bt_line = bt_line[:20] + "..."
             draw.text((0,10), bt_line, fill=255)
