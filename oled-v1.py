@@ -208,7 +208,7 @@ while True:
         try:
             u = psutil.disk_usage("/")
             free = u.free / (1024**3)
-            sd_health = f"SD {u.percent:.0f}% {free:.1f}G"
+            sd_health = f"SD Health {u.percent:.0f}% {free:.1f}G"
         except:
             sd_health = "SD ERR"
         draw.text((0,40), sd_health, fill=255)
