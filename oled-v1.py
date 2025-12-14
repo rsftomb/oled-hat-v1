@@ -6,14 +6,17 @@ import threading
 import random
 import math
 from datetime import timedelta
+
+import RPi.GPIO as GPIO
+
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
 from luma.core.render import canvas
 
 # =====================
-# Version (manual edit)
+# Version
 # =====================
-VERSION = "v1.23"
+VERSION = "v1.24"
 
 # =====================
 # OLED setup
@@ -23,6 +26,20 @@ serial_right = i2c(port=1, address=0x3D)
 
 oled_left = ssd1306(serial_left)
 oled_right = ssd1306(serial_right)
+
+# =====================
+# Waveshare buttons
+# =====================
+BTN_K1 = 5    # UP
+BTN_K2 = 6    # DOWN
+BTN_K3 = 16   # SELECT
+BTN_K4 = 24   # BACK
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+for btn in (BTN_K1, BTN_K2, BTN_K3, BTN_K4):
+    GPIO.setup(btn, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # =====================
 # Shared state
@@ -40,8 +57,21 @@ bt_blips = {}         # mac -> (x,y)
 lock = threading.Lock()
 
 # =====================
+# Menu state
+# =====================
+MENU_ITEMS = ["Dashboard", "WiFi Scan", "Bluetooth Scan"]
+menu_index = 0
+current_screen = "Dashboard"
+
+last_button_time = 0
+BUTTON_DELAY = 0.25
+
+# =====================
 # Helpers
 # =====================
+def button_pressed(pin):
+    return GPIO.input(pin) == GPIO.LOW
+
 def get_ip():
     try:
         return subprocess.check_output("hostname -I", shell=True).decode().strip()
@@ -97,7 +127,7 @@ def wifi_scanner():
         time.sleep(5)
 
 # =====================
-# Bluetooth scanner (stable)
+# Bluetooth scanner
 # =====================
 def bt_scanner():
     global bt_now, bt_total
@@ -135,7 +165,6 @@ def bt_scanner():
         except:
             pass
 
-        # prune stale devices
         for mac in list(bt_last_seen.keys()):
             if time.time() - bt_last_seen[mac] > 15:
                 bt_last_seen.pop(mac, None)
@@ -153,7 +182,7 @@ threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
 # =====================
-# Animations
+# Graphics
 # =====================
 def draw_wifi_bars(draw, level):
     x = 0
@@ -177,55 +206,92 @@ def draw_radar(draw, angle, blips):
         draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
 
 # =====================
-# Display loop (FIXED)
+# Main loop
 # =====================
 radar_mode = True
 mode_time = time.time()
 angle = 0
 
-while True:
-    now = time.time()
+try:
+    while True:
+        now = time.time()
 
-    # mode timing
-    if radar_mode and now - mode_time > 5:
-        radar_mode = False
-        mode_time = now
+        # -------- Buttons --------
+        if now - last_button_time > BUTTON_DELAY:
+            if button_pressed(BTN_K1):
+                menu_index = (menu_index - 1) % len(MENU_ITEMS)
+                last_button_time = now
 
-    elif not radar_mode and now - mode_time > 10:
-        radar_mode = True
-        mode_time = now
+            elif button_pressed(BTN_K2):
+                menu_index = (menu_index + 1) % len(MENU_ITEMS)
+                last_button_time = now
 
-    with lock:
-        w_now = wifi_now
-        w_total = wifi_total
-        b_now = bt_now
-        b_total = bt_total
-        blips = list(bt_blips.values())
+            elif button_pressed(BTN_K3):
+                current_screen = MENU_ITEMS[menu_index]
+                last_button_time = now
 
-        rand_ssid = random.choice(list(seen_wifi)) if seen_wifi else "None"
-        rand_bt = random.choice(list(seen_bt.values())) if seen_bt else "None"
+            elif button_pressed(BTN_K4):
+                current_screen = "Dashboard"
+                last_button_time = now
 
-    # LEFT OLED
-    with canvas(oled_left) as draw:
-        draw.text((0, 0), "WiGLE: jleary53", fill=255)
-        draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
-        draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
-        draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-        draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
-        draw.text((0,50), f"Version: {VERSION}", fill=255)
+        # -------- Mode timing --------
+        if radar_mode and now - mode_time > 5:
+            radar_mode = False
+            mode_time = now
+        elif not radar_mode and now - mode_time > 10:
+            radar_mode = True
+            mode_time = now
 
-    # RIGHT OLED
-    with canvas(oled_right) as draw:
-        if radar_mode:
-            draw.text((0,0), "Radar", fill=255)
-            draw_radar(draw, angle, blips)
-            draw_wifi_bars(draw, w_now % 5)
-        else:
-            draw.text((0, 0), f"WiFi: {w_now}/{w_total}", fill=255)
-            draw.text((0,10), f"BT: {b_now}/{b_total}", fill=255)
-            draw.text((0,20), f"IP: {get_ip()}", fill=255)
-            draw.text((0,30), f"SSID: {rand_ssid[:16]}", fill=255)
-            draw.text((0,40), f"Bluetooth: {rand_bt[:16]}", fill=255)
+        with lock:
+            w_now = wifi_now
+            w_total = wifi_total
+            b_now = bt_now
+            b_total = bt_total
+            blips = list(bt_blips.values())
+            ssids = list(seen_wifi)
+            bt_names = list(seen_bt.values())
 
-    angle += 0.15
-    time.sleep(0.2)
+        # -------- LEFT OLED --------
+        with canvas(oled_left) as draw:
+            draw.text((0, 0), "WiGLE: jleary53", fill=255)
+            draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
+            draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
+            draw.text((0,30), f"Up: {get_uptime()}", fill=255)
+            draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
+            draw.text((0,50), f"Version: {VERSION}", fill=255)
+
+        # -------- RIGHT OLED --------
+        with canvas(oled_right) as draw:
+            draw.text((0, 0), f">{MENU_ITEMS[menu_index]}", fill=255)
+
+            if current_screen == "Dashboard":
+                if radar_mode:
+                    draw.text((0,10), "Radar", fill=255)
+                    draw_radar(draw, angle, blips)
+                    draw_wifi_bars(draw, w_now % 5)
+                else:
+                    draw.text((0,10), f"WiFi: {w_now}/{w_total}", fill=255)
+                    draw.text((0,20), f"BT: {b_now}/{b_total}", fill=255)
+                    draw.text((0,30), f"IP: {get_ip()}", fill=255)
+
+            elif current_screen == "WiFi Scan":
+                draw.text((0,10), f"Now: {w_now}", fill=255)
+                draw.text((0,20), f"Total: {w_total}", fill=255)
+                y = 30
+                for ssid in ssids[-3:]:
+                    draw.text((0, y), ssid[:16], fill=255)
+                    y += 10
+
+            elif current_screen == "Bluetooth Scan":
+                draw.text((0,10), f"Now: {b_now}", fill=255)
+                draw.text((0,20), f"Total: {b_total}", fill=255)
+                y = 30
+                for name in bt_names[-3:]:
+                    draw.text((0, y), name[:16], fill=255)
+                    y += 10
+
+        angle += 0.15
+        time.sleep(0.2)
+
+except KeyboardInterrupt:
+    GPIO.cleanup()
