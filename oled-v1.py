@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "0127"
+VERSION = "0128"
 
 # =====================
 # OLED setup
@@ -63,13 +63,6 @@ def get_uptime():
     except:
         return "?"
 
-def get_usb_voltage():
-    try:
-        v = subprocess.check_output("vcgencmd measure_volts", shell=True).decode()
-        return v.split("=")[1].strip()
-    except:
-        return "?"
-
 # =====================
 # Wi-Fi scanner
 # =====================
@@ -97,7 +90,7 @@ def wifi_scanner():
         time.sleep(5)
 
 # =====================
-# Bluetooth scanner (stable)
+# Bluetooth scanner
 # =====================
 def bt_scanner():
     global bt_now, bt_total
@@ -177,7 +170,7 @@ def draw_radar(draw, angle, blips):
         draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
 
 # =====================
-# Display loop (FIXED)
+# Display loop
 # =====================
 radar_mode = True
 mode_time = time.time()
@@ -187,11 +180,10 @@ while True:
     now = time.time()
 
     # mode timing
-    if radar_mode and now - mode_time > 5:
+    if radar_mode and now - mode_time > 6:
         radar_mode = False
         mode_time = now
-
-    elif not radar_mode and now - mode_time > 10:
+    elif not radar_mode and now - mode_time > 14:
         radar_mode = True
         mode_time = now
 
@@ -211,42 +203,50 @@ while True:
         draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
         draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-        draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
+        
+        # SD card health instead of voltage
+        try:
+            u = psutil.disk_usage("/")
+            free = u.free / (1024**3)
+            sd_health = f"SD {u.percent:.0f}% {free:.1f}G"
+        except:
+            sd_health = "SD ERR"
+        draw.text((0,40), sd_health, fill=255)
+        
         draw.text((0,50), f"Build#: {VERSION}", fill=255)
 
-# RIGHT OLED
-with canvas(oled_right) as draw:
-    if radar_mode:
-        draw.text((0,0), "Radar", fill=255)
-        draw_radar(draw, angle, blips)
-        draw_wifi_bars(draw, w_now % 5)
-    else:
-        # Wi-Fi
-        wifi_line = f"WiFi Current: {w_now} Total: {w_total}"
-        # scroll if too long
-        if len(wifi_line) > 20:
-            wifi_line = wifi_line[:20] + "..."
-        draw.text((0,0), wifi_line, fill=255)
+    # RIGHT OLED
+    with canvas(oled_right) as draw:
+        if radar_mode:
+            draw.text((0,0), "Radar", fill=255)
+            draw_radar(draw, angle, blips)
+            draw_wifi_bars(draw, w_now % 5)
+        else:
+            # Wi-Fi
+            wifi_line = f"WiFi Current: {w_now} Total: {w_total}"
+            if len(wifi_line) > 20:
+                wifi_line = wifi_line[:20] + "..."
+            draw.text((0,0), wifi_line, fill=255)
 
-        # Bluetooth
-        bt_line = f"BT Current: {b_now} Total: {b_total}"
-        if len(bt_line) > 20:
-            bt_line = bt_line[:20] + "..."
-        draw.text((0,10), bt_line, fill=255)
+            # Bluetooth
+            bt_line = f"BT Current: {b_now} Total: {b_total}"
+            if len(bt_line) > 20:
+                bt_line = bt_line[:20] + "..."
+            draw.text((0,10), bt_line, fill=255)
 
-        # IP
-        ip_str = f"IP: {get_ip()}"
-        if len(ip_str) > 20:
-            ip_str = ip_str[:20] + "..."
-        draw.text((0,20), ip_str, fill=255)
+            # IP
+            ip_str = f"IP: {get_ip()}"
+            if len(ip_str) > 20:
+                ip_str = ip_str[:20] + "..."
+            draw.text((0,20), ip_str, fill=255)
 
-        # Random SSID
-        ssid_str = f"SSID: {rand_ssid[:16]}"
-        draw.text((0,30), ssid_str, fill=255)
+            # Random SSID
+            ssid_str = f"SSID: {rand_ssid[:16]}"
+            draw.text((0,30), ssid_str, fill=255)
 
-        # Random BT
-        bt_str = f"Bluetooth: {rand_bt[:16]}"
-        draw.text((0,40), bt_str, fill=255)
+            # Random BT
+            bt_str = f"Bluetooth: {rand_bt[:16]}"
+            draw.text((0,40), bt_str, fill=255)
 
     angle += 0.15
     time.sleep(0.2)
