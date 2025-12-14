@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import os
-import sys
 import time
 import psutil
 import subprocess
@@ -8,55 +6,23 @@ import threading
 import random
 import math
 from datetime import timedelta
-
-# -----------------------------
-# Automatically activate virtualenv
-# -----------------------------
-VENV_PATH = '/home/pi/lcd-env'
-activate_this = os.path.join(VENV_PATH, 'bin', 'activate_this.py')
-if os.path.exists(activate_this):
-    with open(activate_this) as f:
-        exec(f.read(), dict(__file__=activate_this))
-else:
-    print(f"Virtualenv not found at {VENV_PATH}. Continuing without it.")
-
-# -----------------------------
-# Choose display backend
-# -----------------------------
-USE_ST7789 = True  # set False to disable ST7789
-
-if USE_ST7789:
-    import ST7789
-    from PIL import Image, ImageDraw, ImageFont
-    disp = ST7789.ST7789(
-        port=0,
-        cs=1,
-        dc=15,
-        rst=13,
-        backlight=18,
-        width=240,
-        height=320,
-        rotation=90,
-        spi_speed_hz=16000000
-    )
-    disp.begin()
-else:
-    from luma.core.interface.serial import i2c
-    from luma.oled.device import ssd1306
-    from luma.core.render import canvas
-
-    # =====================
-    # OLED setup
-    # =====================
-    serial_left = i2c(port=1, address=0x3C)
-    serial_right = i2c(port=1, address=0x3D)
-    oled_left = ssd1306(serial_left)
-    oled_right = ssd1306(serial_right)
+from luma.core.interface.serial import i2c
+from luma.oled.device import ssd1306
+from luma.core.render import canvas
 
 # =====================
-# Version
+# Version (manual edit)
 # =====================
-VERSION = "v1.24"
+VERSION = "v1.23"
+
+# =====================
+# OLED setup
+# =====================
+serial_left = i2c(port=1, address=0x3C)
+serial_right = i2c(port=1, address=0x3D)
+
+oled_left = ssd1306(serial_left)
+oled_right = ssd1306(serial_right)
 
 # =====================
 # Shared state
@@ -131,7 +97,7 @@ def wifi_scanner():
         time.sleep(5)
 
 # =====================
-# Bluetooth scanner
+# Bluetooth scanner (stable)
 # =====================
 def bt_scanner():
     global bt_now, bt_total
@@ -211,20 +177,20 @@ def draw_radar(draw, angle, blips):
         draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
 
 # =====================
-# Display loop
+# Display loop (FIXED)
 # =====================
 radar_mode = True
 mode_time = time.time()
 angle = 0
 
-font = ImageFont.load_default() if USE_ST7789 else None
-
 while True:
     now = time.time()
 
+    # mode timing
     if radar_mode and now - mode_time > 5:
         radar_mode = False
         mode_time = now
+
     elif not radar_mode and now - mode_time > 10:
         radar_mode = True
         mode_time = now
@@ -235,54 +201,31 @@ while True:
         b_now = bt_now
         b_total = bt_total
         blips = list(bt_blips.values())
+
         rand_ssid = random.choice(list(seen_wifi)) if seen_wifi else "None"
         rand_bt = random.choice(list(seen_bt.values())) if seen_bt else "None"
 
-    if USE_ST7789:
-        # Draw to ST7789
-        img = Image.new("RGB", (disp.width, disp.height), (0,0,0))
-        draw = ImageDraw.Draw(img)
+    # LEFT OLED
+    with canvas(oled_left) as draw:
+        draw.text((0, 0), "WiGLE: jleary53", fill=255)
+        draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
+        draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
+        draw.text((0,30), f"Up: {get_uptime()}", fill=255)
+        draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
+        draw.text((0,50), f"Version: {VERSION}", fill=255)
 
-        draw.text((5,0), f"WiGLE: jleary53", font=font, fill=(255,255,255))
-        draw.text((5,12), f"Temp: {get_cpu_temp()}", font=font, fill=(255,255,255))
-        draw.text((5,24), f"CPU: {psutil.cpu_percent():.1f}%", font=font, fill=(255,255,255))
-        draw.text((5,36), f"Up: {get_uptime()}", font=font, fill=(255,255,255))
-        draw.text((5,48), f"Volt: {get_usb_voltage()}", font=font, fill=(255,255,255))
-        draw.text((5,60), f"Version: {VERSION}", font=font, fill=(255,255,255))
-
+    # RIGHT OLED
+    with canvas(oled_right) as draw:
         if radar_mode:
-            draw.text((5,80), "Radar", font=font, fill=(255,255,255))
+            draw.text((0,0), "Radar", fill=255)
             draw_radar(draw, angle, blips)
             draw_wifi_bars(draw, w_now % 5)
         else:
-            draw.text((5,150), f"WiFi: {w_now}/{w_total}", font=font, fill=(255,255,255))
-            draw.text((5,162), f"BT: {b_now}/{b_total}", font=font, fill=(255,255,255))
-            draw.text((5,174), f"IP: {get_ip()}", font=font, fill=(255,255,255))
-            draw.text((5,186), f"SSID: {rand_ssid[:16]}", font=font, fill=(255,255,255))
-            draw.text((5,198), f"Bluetooth: {rand_bt[:16]}", font=font, fill=(255,255,255))
-
-        disp.display(img)
-    else:
-        # Original OLEDs
-        with canvas(oled_left) as draw:
-            draw.text((0, 0), "WiGLE: jleary53", fill=255)
-            draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
-            draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
-            draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-            draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
-            draw.text((0,50), f"Version: {VERSION}", fill=255)
-
-        with canvas(oled_right) as draw:
-            if radar_mode:
-                draw.text((0,0), "Radar", fill=255)
-                draw_radar(draw, angle, blips)
-                draw_wifi_bars(draw, w_now % 5)
-            else:
-                draw.text((0, 0), f"WiFi: {w_now}/{w_total}", fill=255)
-                draw.text((0,10), f"BT: {b_now}/{b_total}", fill=255)
-                draw.text((0,20), f"IP: {get_ip()}", fill=255)
-                draw.text((0,30), f"SSID: {rand_ssid[:16]}", fill=255)
-                draw.text((0,40), f"Bluetooth: {rand_bt[:16]}", fill=255)
+            draw.text((0, 0), f"WiFi: {w_now}/{w_total}", fill=255)
+            draw.text((0,10), f"BT: {b_now}/{b_total}", fill=255)
+            draw.text((0,20), f"IP: {get_ip()}", fill=255)
+            draw.text((0,30), f"SSID: {rand_ssid[:16]}", fill=255)
+            draw.text((0,40), f"Bluetooth: {rand_bt[:16]}", fill=255)
 
     angle += 0.15
     time.sleep(0.2)
