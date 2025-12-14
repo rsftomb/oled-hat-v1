@@ -247,7 +247,7 @@ while True:
             draw.text((0,40), bt_str, fill=255)
 
             # Mode scrolling
-            mode_text = "Mode: Wardriver Scanning   "
+            mode_text = "WarPi.G Zero2W "
             display_text = mode_text[scroll_pos:] + mode_text[:scroll_pos]
             draw.text((0,50), display_text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode_text)
