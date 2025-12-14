@@ -1,4 +1,4 @@
-WarScanner OLED HAT v1
+##WarPi.G Zero2W
 
 📓 Changelog / Patch Notes
 Build#: 1214.04 — SD Health & UI Stabilization
