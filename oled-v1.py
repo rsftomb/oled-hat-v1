@@ -16,7 +16,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "v1.24"
+VERSION = "0124"
 
 # =====================
 # OLED setup
@@ -93,12 +93,22 @@ def get_uptime():
     except:
         return "?"
 
-def get_usb_voltage():
+def get_sd_health():
     try:
-        v = subprocess.check_output("vcgencmd measure_volts", shell=True).decode()
-        return v.split("=")[1].strip()
+        usage = psutil.disk_usage("/")
+        percent = usage.percent
+        free_gb = usage.free / (1024**3)
+
+        with open("/proc/mounts") as f:
+            mounts = f.read()
+
+        root_mount = [m for m in mounts.splitlines() if " / " in m]
+        if root_mount and " ro," in root_mount[0]:
+            return "SD: READ-ONLY!"
+
+        return f"SD: OK {percent:.0f}% {free_gb:.1f}G"
     except:
-        return "?"
+        return "SD: ERROR"
 
 # =====================
 # Wi-Fi scanner
@@ -197,11 +207,9 @@ def draw_wifi_bars(draw, level):
 def draw_radar(draw, angle, blips):
     cx, cy, r = 70, 32, 28
     draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=255)
-
     x = cx + int(r * math.cos(angle))
     y = cy + int(r * math.sin(angle))
     draw.line((cx, cy, x, y), fill=255)
-
     for bx, by in blips:
         draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
 
@@ -216,25 +224,20 @@ try:
     while True:
         now = time.time()
 
-        # -------- Buttons --------
         if now - last_button_time > BUTTON_DELAY:
             if button_pressed(BTN_K1):
                 menu_index = (menu_index - 1) % len(MENU_ITEMS)
                 last_button_time = now
-
             elif button_pressed(BTN_K2):
                 menu_index = (menu_index + 1) % len(MENU_ITEMS)
                 last_button_time = now
-
             elif button_pressed(BTN_K3):
                 current_screen = MENU_ITEMS[menu_index]
                 last_button_time = now
-
             elif button_pressed(BTN_K4):
                 current_screen = "Dashboard"
                 last_button_time = now
 
-        # -------- Mode timing --------
         if radar_mode and now - mode_time > 5:
             radar_mode = False
             mode_time = now
@@ -251,16 +254,14 @@ try:
             ssids = list(seen_wifi)
             bt_names = list(seen_bt.values())
 
-        # -------- LEFT OLED --------
         with canvas(oled_left) as draw:
             draw.text((0, 0), "WiGLE: jleary53", fill=255)
             draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
             draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
             draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-            draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
-            draw.text((0,50), f"Version: {VERSION}", fill=255)
+            draw.text((0,40), get_sd_health(), fill=255)
+            draw.text((0,50), f"Build #: {VERSION}", fill=255)
 
-        # -------- RIGHT OLED --------
         with canvas(oled_right) as draw:
             draw.text((0, 0), f">{MENU_ITEMS[menu_index]}", fill=255)
 
