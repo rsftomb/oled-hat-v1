@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "0126"
+VERSION = "0127"
 
 # =====================
 # OLED setup
@@ -214,18 +214,39 @@ while True:
         draw.text((0,40), f"Volt: {get_usb_voltage()}", fill=255)
         draw.text((0,50), f"Build#: {VERSION}", fill=255)
 
-    # RIGHT OLED
-    with canvas(oled_right) as draw:
-        if radar_mode:
-            draw.text((0,0), "Radar", fill=255)
-            draw_radar(draw, angle, blips)
-            draw_wifi_bars(draw, w_now % 5)
-        else:
-            draw.text((0, 0), f"WiFi: {w_now}/{w_total}", fill=255)
-            draw.text((0,10), f"BT: {b_now}/{b_total}", fill=255)
-            draw.text((0,20), f"IP: {get_ip()}", fill=255)
-            draw.text((0,30), f"SSID: {rand_ssid[:16]}", fill=255)
-            draw.text((0,40), f"Bluetooth: {rand_bt[:16]}", fill=255)
+# RIGHT OLED
+with canvas(oled_right) as draw:
+    if radar_mode:
+        draw.text((0,0), "Radar", fill=255)
+        draw_radar(draw, angle, blips)
+        draw_wifi_bars(draw, w_now % 5)
+    else:
+        # Wi-Fi
+        wifi_line = f"WiFi Current: {w_now} Total: {w_total}"
+        # scroll if too long
+        if len(wifi_line) > 20:
+            wifi_line = wifi_line[:20] + "..."
+        draw.text((0,0), wifi_line, fill=255)
+
+        # Bluetooth
+        bt_line = f"BT Current: {b_now} Total: {b_total}"
+        if len(bt_line) > 20:
+            bt_line = bt_line[:20] + "..."
+        draw.text((0,10), bt_line, fill=255)
+
+        # IP
+        ip_str = f"IP: {get_ip()}"
+        if len(ip_str) > 20:
+            ip_str = ip_str[:20] + "..."
+        draw.text((0,20), ip_str, fill=255)
+
+        # Random SSID
+        ssid_str = f"SSID: {rand_ssid[:16]}"
+        draw.text((0,30), ssid_str, fill=255)
+
+        # Random BT
+        bt_str = f"Bluetooth: {rand_bt[:16]}"
+        draw.text((0,40), bt_str, fill=255)
 
     angle += 0.15
     time.sleep(0.2)
