@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "1215.03"
+VERSION = "1215.04"
 
 # =====================
 # OLED setup
@@ -255,8 +255,8 @@ while True:
             draw_radar(draw, angle, blips)
             draw_wifi_bars(draw, w_now % 5)
         else:
-            draw.text((0,0), f"WiFi {w_now}/{w_total}", fill=255)
-            draw.text((0,10), f"BT {b_now}/{b_total}", fill=255)
+            draw.text((5,150), f"WiFi: {w_now}/{w_total}", font=font, fill=(255,255,255)
+            draw.text((5,162), f"BT: {b_now}/{b_total}", font=font, fill=(255,255,255)
             ip = get_ip()
             draw.text((0,20), ip[:20], fill=255)
             draw.text((0,30), f"SSID {rand_ssid[:14]}", fill=255)
