@@ -36,32 +36,22 @@ def show_boot_screen():
         ("Ready", 100),
     ]
 
-    bar_x = 0
-    bar_y = 44
-    bar_w = 120
-    bar_h = 8
+    bar_x, bar_y, bar_w, bar_h = 0, 44, 120, 8
 
     for label, pct in stages:
         for step in range(0, pct + 1, 4):
             with canvas(oled_left) as draw:
                 draw.text((0, 8), "WarPi.G", fill=255)
                 draw.text((0, 22), label, fill=255)
-                draw.rectangle(
-                    (bar_x, bar_y, bar_x + bar_w, bar_y + bar_h),
-                    outline=255
-                )
+                draw.rectangle((bar_x, bar_y, bar_x + bar_w, bar_y + bar_h), outline=255)
                 fill_w = int((step / 100) * bar_w)
-                draw.rectangle(
-                    (bar_x, bar_y, bar_x + fill_w, bar_y + bar_h),
-                    fill=255
-                )
+                draw.rectangle((bar_x, bar_y, bar_x + fill_w, bar_y + bar_h), fill=255)
 
             with canvas(oled_right) as draw:
                 draw.text((0, 20), "Booting", fill=255)
-                draw.text((0, 36), f"Build#:{VERSION}", fill=255)
+                draw.text((0, 36), f"Build {VERSION}", fill=255)
 
             time.sleep(0.05)
-
     time.sleep(0.5)
 
 # =====================
@@ -144,11 +134,7 @@ def bt_scanner():
 
     while True:
         try:
-            out = subprocess.check_output(
-                "bluetoothctl devices",
-                shell=True
-            ).decode()
-
+            out = subprocess.check_output("bluetoothctl devices", shell=True).decode()
             now_ts = time.time()
 
             for line in out.splitlines():
@@ -156,10 +142,8 @@ def bt_scanner():
                     parts = line.split(maxsplit=2)
                     mac = parts[1]
                     name = parts[2] if len(parts) == 3 else "Unknown"
-
                     seen_bt[mac] = name
                     bt_last_seen[mac] = now_ts
-
                     if mac not in bt_blips:
                         bt_blips[mac] = (
                             random.randint(-14, 14),
@@ -182,14 +166,14 @@ def bt_scanner():
 # Animations
 # =====================
 def draw_wifi_bars(draw, level):
-    x = 0
     base = 55
     for i in range(4):
         h = (i + 1) * 6
+        x = i * 10
         if i < level:
-            draw.rectangle((x+i*10, base-h, x+i*10+6, base), fill=255)
+            draw.rectangle((x, base-h, x+6, base), fill=255)
         else:
-            draw.rectangle((x+i*10, base-h, x+i*10+6, base), outline=255)
+            draw.rectangle((x, base-h, x+6, base), outline=255)
 
 def draw_radar(draw, angle, blips):
     cx, cy, r = 70, 32, 28
@@ -247,7 +231,7 @@ while True:
         except:
             sd = "SD ERR"
         draw.text((0,40), sd, fill=255)
-        draw.text((0,50), f"Build#:{VERSION}", fill=255)
+        draw.text((0,50), f"Build {VERSION}", fill=255)
 
     with canvas(oled_right) as draw:
         if radar_mode:
@@ -255,13 +239,12 @@ while True:
             draw_radar(draw, angle, blips)
             draw_wifi_bars(draw, w_now % 5)
         else:
-            draw.text((5,150), f"WiFi: {w_now}/{w_total}", font=font, fill=(255,255,255)
-            draw.text((5,162), f"BT: {b_now}/{b_total}", font=font, fill=(255,255,255)
-            ip = get_ip()
-            draw.text((0,20), ip[:20], fill=255)
+            draw.text((0,0), f"WiFi {w_now}/{w_total}", fill=255)
+            draw.text((0,10), f"BT {b_now}/{b_total}", fill=255)
+            draw.text((0,20), get_ip()[:20], fill=255)
             draw.text((0,30), f"SSID {rand_ssid[:14]}", fill=255)
             draw.text((0,40), f"BT {rand_bt[:14]}", fill=255)
-            mode = "WarPi.G Zero2w "
+            mode = "WarPi.G Zero2W "
             text = mode[scroll_pos:] + mode[:scroll_pos]
             draw.text((0,50), text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode)
