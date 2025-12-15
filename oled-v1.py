@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "1214.05"
+VERSION = "1215.01"
 
 # =====================
 # OLED setup
