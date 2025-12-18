@@ -1,27 +1,21 @@
-##WarPi.G Zero2W
-
-Designed and tested on Raspberry Pi Zero 2 W
-
-Optimized for low power, portable wardriving use
-
-Intended for educational and lawful wireless surveying only
-
+======== WarPi.G Zero2W - Python Wardriver for Pi Zero2w ========
 Dual-OLED live telemetry + Wi-Fi/Bluetooth scanning system for the Raspberry Pi Zero 2 W.
-Designed for compact wardriving rigs, RF scanning builds, and general Pi diagnostics.
+Designed for compact wardriving rigs.
 
-This script powers two SSD1306 (128×64) I²C OLED displays, pulls device/system stats, and continuously updates live scan data in real time.
+- Designed and tested on Raspberry Pi Zero 2 W
+- Optimized for low power, portable wardriving use
+- Intended for educational and lawful wireless surveying only - Author IS NOT liable for end users actions.
+- Supports 2x SSD1306 (128×64) I²C OLED displays, pulls device/system stats, and continuously updates live scan data in real time.
+- Future display support additions planned - Can be manually configured for your display.
 
 ✨ Features
-📡 Wireless Scanning
 
-Wi-Fi
+📡 WiFi Wardriving
+- Wi-Fi Uses iwlist for maximum compatibility
+- Shows current visible SSIDs
+- Tracks unique SSIDs for "Total Seen This Boot"
 
-Uses iwlist for maximum compatibility
-
-Shows current visible SSIDs
-
-Tracks unique SSIDs for lifetime total
-
+<img src="https://upload.wikimedia.org/wikipedia/commons/2/21/Bluetooth_icon.svg" width="20">
 Bluetooth
 
 Uses bluetoothctl scan on/off
