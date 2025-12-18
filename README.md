@@ -8,37 +8,29 @@ Designed for compact wardriving rigs.
 - Supports 2x SSD1306 (128×64) I²C OLED displays, pulls device/system stats, and continuously updates live scan data in real time.
 - Future display support additions planned - Can be manually configured for your display.
 
-✨ Features
+✨ **WarPi.G Features**
 
-📡 WiFi Wardriving
-- Wi-Fi Uses iwlist for maximum compatibility
+📡 **WiFi Wardriving**
+- Wi-Fi Uses _iwlist_ for maximum compatibility
 - Shows current visible SSIDs
-- Tracks unique SSIDs for "Total Seen This Boot"
+- Counts current visible devices
+- Stores unique SSIDs for "Total Seen This Boot"
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/2/21/Bluetooth_icon.svg" width="20">
-Bluetooth
+📶 **Bluetooth**
+- Uses _bluetoothctl_ scan on/off
+- Shows current visible Device Names
+- Counts current visible devices
+- Stores unique MACs "Total Seen This Boot"
 
-Uses bluetoothctl scan on/off
+📺 **Native Dual OLED Output - 40pin GPIO SLC**
 
-Counts current visible devices
-
-Stores unique MACs for running total
-
-📺 Dual OLED Output
-
-Left Display (0x3C): System Info
-
-User: jleary53
-
+- Left Display (0x3C): System Info
+User: [username]
 CPU temperature (°F)
-
 CPU load %
-
 IP address
-
-Uptime
-
-5V rail voltage (via vcgencmd measure_volts)
+Uptime HH:MM:SS
+SD Usage
 
 Right Display (0x3D): Wardriving Info
 
@@ -56,8 +48,7 @@ Separate Wi-Fi and Bluetooth worker threads keep counts live and responsive.
 
 Minimal WiFi + BT glyphs for clarity.
 
-📦 Requirements
-Hardware
+📦 **Hardware Requirements**
 
 Raspberry Pi Zero 2 W
 
@@ -67,14 +58,14 @@ Working Wi-Fi + Bluetooth (built-in)
 
 Software
 
-Install dependencies:
+**Install dependencies:**
 
 sudo apt update
 sudo apt install python3-pip python3-smbus python3-pil i2c-tools
 pip3 install luma.oled psutil
 
 
-Enable I2C:
+**Enable I2C:**
 
 sudo raspi-config
 
@@ -87,7 +78,9 @@ get_cpu_temp()	Converts Pi temp to Fahrenheit.
 get_usb_voltage()	Reads Pi 5V rail via vcgencmd measure_volts.
 canvas(oled)	Draws each frame on both displays.
 threading.Lock()	Prevents races between the two scan threads.
-▶ Running Automatically (systemd)
+
+
+▶ Setup AutoRun Automatically (systemd)
 
 Create a service:
 
@@ -126,25 +119,11 @@ OLEDs can burn in if static text is displayed for long periods.
 
 🚀 Planned for V2
 
-These are improvements that naturally follow your current design:
-
-Automatic screen dimming based on inactivity
-
-Optional right-side “map mode” (GPS integration)
-
-Separate icon set: signal bars, battery icon, animations
-
-Packet count / Wi-Fi channel graph
-
-SD card health display
-
 Auto-save CSV of all seen Wi-Fi + BT devices
 
 Hotkey-triggered mode switching
 
 Optional e-ink version (ultra-low-power)
-
-I can also build these into a full V2 script with modular classes.
 
 📜 License (MIT)
 MIT License
