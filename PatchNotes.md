@@ -1,7 +1,7 @@
 ====================================== PATCH NOTES ======================================
 📓 Changelog / Patch Notes
 
-**Build 1215.04** 
+**Build 1215.04**  
 SD Health & UI Stabilization
 
 Replaced USB voltage readout with SD card health monitoring
