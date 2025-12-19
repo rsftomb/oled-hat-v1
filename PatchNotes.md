@@ -1,7 +1,8 @@
 ====================================== PATCH NOTES ======================================
 📓 Changelog / Patch Notes
 
-v1.31 — SD Health & UI Stabilization
+**Build 1215.04** 
+SD Health & UI Stabilization
 
 Replaced USB voltage readout with SD card health monitoring
 
@@ -13,7 +14,8 @@ Improved exception handling around disk and mount queries
 
 Minor UI spacing and refresh stability improvements
 
-v1.30 — Menu System & Button Integration
+**Build 1214.02** 
+Menu System & Button Integration
 
 Added scrollable menu system navigable via Waveshare K1–K4 buttons
 
@@ -31,7 +33,8 @@ Preserved background scanning threads during menu navigation
 
 Improved button debounce logic for reliable input
 
-v1.25 — Dual-OLED Wardriving Dashboard
+**Build 1212.05** 
+Dual-OLED Wardriving Dashboard
 
 Implemented dual OLED layout (left/right displays)
 
@@ -43,7 +46,8 @@ Improved Bluetooth device tracking and timeout pruning
 
 Randomized device “blips” for radar realism
 
-v1.23 — Core Scanning & System Telemetry
+**Build 1211.04**
+Core Scanning & System Telemetry
 
 Initial release of Wi-Fi and Bluetooth scanning engine
 
