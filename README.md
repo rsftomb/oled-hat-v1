@@ -1,4 +1,4 @@
-======== WarPi.G Zero2W - Python Wardriver for Pi Zero2w ========
+======== WarPi.G Zero2W - Python Wardriver for Pi Zero2w ======== 
 Dual-OLED live telemetry + Wi-Fi/Bluetooth scanning system for the Raspberry Pi Zero 2 W.
 Designed for compact wardriving rigs.
 
