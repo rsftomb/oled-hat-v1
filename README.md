@@ -138,7 +138,5 @@ copies of the Software, and to permit persons to whom the Software is
 furnished to do so.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
-👤 Author
-
-Developed by:
-jleary53 / Sunshine State Media LLC
+💻 Developed by:
+Jon Leary aka jleary53 / Sunshine State Media LLC
