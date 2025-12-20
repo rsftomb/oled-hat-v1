@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "1215.04"
+VERSION = "1219.01"
 
 # =====================
 # OLED setup
@@ -29,11 +29,11 @@ oled_right = ssd1306(serial_right)
 # =====================
 def show_boot_screen():
     stages = [
-        ("Init Core", 20),
-        ("Init WiFi", 40),
-        ("Init BT", 60),
-        ("Starting UI", 80),
-        ("Ready", 100),
+        ("Init Core.", 25),
+        ("Init WiFi..", 40),
+        ("Init BT...", 50),
+        ("Booting WarPi.G....", 80),
+        ("Logging Started.....", 100),
     ]
 
     bar_x, bar_y, bar_w, bar_h = 0, 44, 120, 8
@@ -239,12 +239,12 @@ while True:
             draw_radar(draw, angle, blips)
             draw_wifi_bars(draw, w_now % 5)
         else:
-            draw.text((0,0), f"WiFi {w_now}/{w_total}", fill=255)
-            draw.text((0,10), f"BT {b_now}/{b_total}", fill=255)
+            draw.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
+            draw.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
             draw.text((0,20), get_ip()[:20], fill=255)
-            draw.text((0,30), f"SSID {rand_ssid[:14]}", fill=255)
-            draw.text((0,40), f"BT {rand_bt[:14]}", fill=255)
-            mode = "WarPi.G Zero2W "
+            draw.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
+            draw.text((0,40), f"BT Device: {rand_bt[:14]}", fill=255)
+            mode = "WarPi.G Zero2W"
             text = mode[scroll_pos:] + mode[:scroll_pos]
             draw.text((0,50), text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode)
