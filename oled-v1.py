@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version (manual edit)
 # =====================
-VERSION = "1219.01"
+VERSION = "1219.02"
 
 # =====================
 # OLED setup
@@ -48,8 +48,8 @@ def show_boot_screen():
                 draw.rectangle((bar_x, bar_y, bar_x + fill_w, bar_y + bar_h), fill=255)
 
             with canvas(oled_right) as draw:
-                draw.text((0, 20), "Booting", fill=255)
-                draw.text((0, 36), f"Build {VERSION}", fill=255)
+                draw.text((0, 20), "Updating...", fill=255)
+                draw.text((0, 36), f"Build# {VERSION}", fill=255)
 
             time.sleep(0.05)
     time.sleep(0.5)
@@ -231,7 +231,7 @@ while True:
         except:
             sd = "SD ERR"
         draw.text((0,40), sd, fill=255)
-        draw.text((0,50), f"Build {VERSION}", fill=255)
+        draw.text((0,50), f"Build# {VERSION}", fill=255)
 
     with canvas(oled_right) as draw:
         if radar_mode:
