@@ -244,7 +244,7 @@ while True:
             draw.text((0,20), get_ip()[:20], fill=255)
             draw.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
             draw.text((0,40), f"BT Device: {rand_bt[:14]}", fill=255)
-            mode = "WarPi.G Zero2W"
+            mode = "WarPi.G Zero2W    "
             text = mode[scroll_pos:] + mode[:scroll_pos]
             draw.text((0,50), text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode)
