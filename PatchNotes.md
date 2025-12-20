@@ -1,10 +1,56 @@
-====================================== PATCH NOTES ======================================
-📓 WarPi.G Patch Notes
+📓 ### **WarPi.G – Patch Notes**
+_______________________________________________________________________________________
 
-**Build 1219.01 - Beta Prerelease**
+### Build 1220.01
+
+## Radar System (Major Update)
+- **Radar source changed from Bluetooth to Wi-Fi**
+  - Radar now visualizes nearby Wi-Fi access points instead of Bluetooth devices.
+  - Bluetooth scanning remains active for statistical display only.
+
+- **Signal-strength-based positioning**
+  - Wi-Fi RSSI is mapped to radar radius.
+  - Stronger signals render closer to center; weaker signals appear toward the edge.
+
+- **Sweep-hit detection & flash effect**
+  - Radar blips flash when intersected by the sweep line.
+  - Provides real-time visual confirmation of detection events.
+
+- **SSID detection pop-ups**
+  - Newly detected Wi-Fi networks briefly display their SSID on the radar screen.
+  - Pop-ups automatically expire after a short duration.
+
+- **Blip population control**
+  - Radar limited to **3 active Wi-Fi blips** at any time.
+  - Old or stale entries are removed using time-based decay.
+  - Prevents clutter and improves readability on small OLED displays.
+
+## Wi-Fi Scanner Improvements
+- Added **time-based aging** for detected networks.
+- Stale SSIDs are automatically removed from radar visualization.
+- Total-seen and currently-seen counts are preserved for stats display.
+
+## Bluetooth Scanner
+- Bluetooth tracking retained for:
+  - Active device count
+  - Total seen device count
+- Bluetooth devices no longer generate radar artifacts.
+
+## Visual & UX Enhancements
+- Radar behavior now more closely resembles a true RF sweep:
+  - Dynamic detection
+  - Visual confirmation on sweep contact
+  - Reduced screen noise under dense RF conditions
+- Improved readability during extended runtimes.
+
+## Stability
+- Prevented unbounded growth of internal radar state.
+- Reduced OLED clutter and overpopulation during long scanning sessions.
+______________________________________________________________________________________
+  **Build 1219.01 - Beta Prerelease**
 - Minor UI Update to Wifi/BT Counter
 - Optimization of boot sequence & UI.
-
+_______________________________________________________________________________________
 **Build 1215.04**  
 - SD Health & UI Stabilization
 - Replaced USB voltage readout with SD card health monitoring
@@ -12,14 +58,14 @@
 - Display SD usage percentage and free space on LEFT OLED
 - Improved exception handling around disk and mount queries
 - Minor UI spacing and refresh stability improvements
-
+_______________________________________________________________________________________
 **Build 1214.02** 
 - Wi-Fi Scan
 - Bluetooth Scan
 - Introduced lightweight state machine for screen control
 - Preserved background scanning threads during menu navigation
 - Improved button debounce logic for reliable input
-
+_______________________________________________________________________________________
 **Build 1212.05** 
 - Dual-OLED Wardriving Dashboard
 - Implemented dual OLED layout (left/right displays)
@@ -27,7 +73,7 @@
 - Added live Wi-Fi signal bar display
 - Improved Bluetooth device tracking and timeout pruning
 - Randomized device “blips” for radar realism
-
+_______________________________________________________________________________________
 **Build 1211.04 - Initial Release**
 - Core Scanning & System Telemetry
 - Initial release of Wi-Fi and Bluetooth scanning engine
