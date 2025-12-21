@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1220.00"
+VERSION = "1220.02"
 
 # =====================
 # OLED setup
@@ -269,11 +269,11 @@ while True:
         d.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         d.text((0,30), f"Up: {get_uptime()}", fill=255)
         d.text((0,40), f"IP: {get_ip()[:16]}", fill=255)
-        d.text((0,50), f"Build# {VERSION}", fill=255)
+        d.text((0,50), f"Build # {VERSION}", fill=255)
 
     with canvas(oled_right) as d:
         if radar_mode:
-            d.text((0,0), "WiFi Radar", fill=255)
+            d.text((0,0), "WiFi dB", fill=255)
             draw_radar(d, angle)
 
             y = 52
