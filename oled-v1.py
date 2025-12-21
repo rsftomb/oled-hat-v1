@@ -11,17 +11,17 @@ from luma.oled.device import ssd1306
 from luma.core.render import canvas
 
 # =====================
-# Version (manual edit)
+# Version
 # =====================
-VERSION = "1219.02"
+VERSION = "1220.00"
 
 # =====================
 # OLED setup
 # =====================
-serial_left = i2c(port=1, address=0x3C)
+serial_left  = i2c(port=1, address=0x3C)
 serial_right = i2c(port=1, address=0x3D)
 
-oled_left = ssd1306(serial_left)
+oled_left  = ssd1306(serial_left)
 oled_right = ssd1306(serial_right)
 
 # =====================
@@ -30,42 +30,40 @@ oled_right = ssd1306(serial_right)
 def show_boot_screen():
     stages = [
         ("Init Core.", 25),
-        ("Init WiFi..", 40),
-        ("Init BT...", 50),
-        ("Booting WarPi.G....", 80),
+        ("Init WiFi..", 45),
+        ("Init BT...", 60),
+        ("Booting WarPi.G....", 85),
         ("Logging Started.....", 100),
     ]
 
-    bar_x, bar_y, bar_w, bar_h = 0, 44, 120, 8
-
     for label, pct in stages:
-        for step in range(0, pct + 1, 4):
-            with canvas(oled_left) as draw:
-                draw.text((0, 8), "WarPi.G", fill=255)
-                draw.text((0, 22), label, fill=255)
-                draw.rectangle((bar_x, bar_y, bar_x + bar_w, bar_y + bar_h), outline=255)
-                fill_w = int((step / 100) * bar_w)
-                draw.rectangle((bar_x, bar_y, bar_x + fill_w, bar_y + bar_h), fill=255)
+        for step in range(0, pct + 1, 5):
+            with canvas(oled_left) as d:
+                d.text((0, 8), "WarPi.G", fill=255)
+                d.text((0, 22), label, fill=255)
+                d.rectangle((0, 44, 120, 52), outline=255)
+                d.rectangle((0, 44, int(step * 1.2), 52), fill=255)
 
-            with canvas(oled_right) as draw:
-                draw.text((0, 20), "Updating...", fill=255)
-                draw.text((0, 36), f"Build# {VERSION}", fill=255)
+            with canvas(oled_right) as d:
+                d.text((0, 20), "Updating...", fill=255)
+                d.text((0, 36), f"Build# {VERSION}", fill=255)
 
-            time.sleep(0.05)
-    time.sleep(0.5)
+            time.sleep(0.04)
+    time.sleep(0.4)
 
 # =====================
 # Shared state
 # =====================
-wifi_now = 0
-wifi_total = 0
-bt_now = 0
-bt_total = 0
+wifi_now = wifi_total = 0
+bt_now = bt_total = 0
 
-seen_wifi = set()
+wifi_seen = {}
+wifi_last_seen = {}
+wifi_blips = {}          # ssid -> (angle, r, last_hit_ts)
+wifi_popups = {}         # ssid -> expire_ts
+
 seen_bt = {}
 bt_last_seen = {}
-bt_blips = {}
 
 lock = threading.Lock()
 
@@ -93,49 +91,95 @@ def get_uptime():
     except:
         return "?"
 
+def rssi_to_radius(rssi, max_r=26):
+    """
+    RSSI approx range:
+    -30 very close
+    -90 far
+    """
+    rssi = max(-90, min(-30, rssi))
+    return int(((abs(rssi) - 30) / 60) * max_r)
+
 # =====================
-# Wi-Fi scanner
+# Wi-Fi scanner (RADAR SOURCE)
 # =====================
 def wifi_scanner():
     global wifi_now, wifi_total
+
+    STALE_TIME = 15
+    MAX_BLIPS = 3
+    POPUP_TIME = 3
+
     while True:
-        current = []
+        now_ts = time.time()
+        current = set()
+
         try:
             out = subprocess.check_output(
-                "sudo iwlist wlan0 scan 2>/dev/null | grep ESSID",
+                "sudo iwlist wlan0 scan 2>/dev/null | egrep 'ESSID|Signal level'",
                 shell=True
-            ).decode()
-            for line in out.splitlines():
-                ssid = line.split("ESSID:")[1].replace('"','').strip()
-                if ssid:
-                    current.append(ssid)
-                    seen_wifi.add(ssid)
+            ).decode().splitlines()
+
+            ssid = None
+            rssi = None
+
+            for line in out:
+                if "ESSID" in line:
+                    ssid = line.split("ESSID:")[1].replace('"','').strip()
+                elif "Signal level" in line and ssid:
+                    try:
+                        rssi = int(line.split("Signal level=")[1].split(" ")[0])
+                    except:
+                        rssi = -80
+
+                    current.add(ssid)
+                    wifi_seen[ssid] = True
+                    wifi_last_seen[ssid] = now_ts
+
+                    if ssid not in wifi_blips:
+                        if len(wifi_blips) >= MAX_BLIPS:
+                            oldest = min(wifi_last_seen, key=wifi_last_seen.get)
+                            wifi_blips.pop(oldest, None)
+                            wifi_last_seen.pop(oldest, None)
+
+                        wifi_blips[ssid] = {
+                            "angle": random.uniform(0, 2*math.pi),
+                            "r": rssi_to_radius(rssi),
+                            "hit": 0
+                        }
+                        wifi_popups[ssid] = now_ts + POPUP_TIME
+
+                    ssid = None
+
         except:
             pass
 
+        # cleanup stale
+        for s in list(wifi_last_seen.keys()):
+            if now_ts - wifi_last_seen[s] > STALE_TIME:
+                wifi_last_seen.pop(s, None)
+                wifi_blips.pop(s, None)
+                wifi_popups.pop(s, None)
+
         with lock:
             wifi_now = len(current)
-            wifi_total = len(seen_wifi)
+            wifi_total = len(wifi_seen)
 
         time.sleep(5)
 
 # =====================
-# Bluetooth scanner
+# Bluetooth scanner (stats only)
 # =====================
 def bt_scanner():
     global bt_now, bt_total
 
-    subprocess.Popen(
-        "bluetoothctl scan on",
-        shell=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
+    subprocess.Popen("bluetoothctl scan on", shell=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     while True:
         try:
             out = subprocess.check_output("bluetoothctl devices", shell=True).decode()
-            now_ts = time.time()
+            now = time.time()
 
             for line in out.splitlines():
                 if line.startswith("Device"):
@@ -143,16 +187,12 @@ def bt_scanner():
                     mac = parts[1]
                     name = parts[2] if len(parts) == 3 else "Unknown"
                     seen_bt[mac] = name
-                    bt_last_seen[mac] = now_ts
-                    if mac not in bt_blips:
-                        bt_blips[mac] = (
-                            random.randint(-14, 14),
-                            random.randint(-14, 14)
-                        )
+                    bt_last_seen[mac] = now
+
         except:
             pass
 
-        for mac in list(bt_last_seen.keys()):
+        for mac in list(bt_last_seen):
             if time.time() - bt_last_seen[mac] > 15:
                 bt_last_seen.pop(mac, None)
 
@@ -163,29 +203,35 @@ def bt_scanner():
         time.sleep(3)
 
 # =====================
-# Animations
+# Radar drawing
 # =====================
-def draw_wifi_bars(draw, level):
-    base = 55
-    for i in range(4):
-        h = (i + 1) * 6
-        x = i * 10
-        if i < level:
-            draw.rectangle((x, base-h, x+6, base), fill=255)
-        else:
-            draw.rectangle((x, base-h, x+6, base), outline=255)
-
-def draw_radar(draw, angle, blips):
+def draw_radar(draw, sweep_angle):
     cx, cy, r = 70, 32, 28
+
     draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=255)
-    x = cx + int(r * math.cos(angle))
-    y = cy + int(r * math.sin(angle))
-    draw.line((cx, cy, x, y), fill=255)
-    for bx, by in blips:
-        draw.ellipse((cx+bx-2, cy+by-2, cx+bx+2, cy+by+2), fill=255)
+
+    sx = cx + int(r * math.cos(sweep_angle))
+    sy = cy + int(r * math.sin(sweep_angle))
+    draw.line((cx, cy, sx, sy), fill=255)
+
+    now = time.time()
+
+    for ssid, data in wifi_blips.items():
+        bx = cx + int(data["r"] * math.cos(data["angle"]))
+        by = cy + int(data["r"] * math.sin(data["angle"]))
+
+        # sweep hit detection
+        if abs((sweep_angle - data["angle"] + math.pi) % (2*math.pi) - math.pi) < 0.15:
+            data["hit"] = now
+
+        # flash effect
+        if now - data["hit"] < 0.3:
+            draw.ellipse((bx-3, by-3, bx+3, by+3), fill=255)
+        else:
+            draw.ellipse((bx-2, by-2, bx+2, by+2), outline=255)
 
 # =====================
-# Boot + Start
+# Boot + threads
 # =====================
 show_boot_screen()
 
@@ -193,7 +239,7 @@ threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
 # =====================
-# Display loop
+# Main loop
 # =====================
 radar_mode = True
 mode_time = time.time()
@@ -203,7 +249,7 @@ scroll_pos = 0
 while True:
     now = time.time()
 
-    if radar_mode and now - mode_time > 6:
+    if radar_mode and now - mode_time > 7:
         radar_mode = False
         mode_time = now
     elif not radar_mode and now - mode_time > 14:
@@ -215,39 +261,33 @@ while True:
         w_total = wifi_total
         b_now = bt_now
         b_total = bt_total
-        blips = list(bt_blips.values())
-        rand_ssid = random.choice(list(seen_wifi)) if seen_wifi else "None"
-        rand_bt = random.choice(list(seen_bt.values())) if seen_bt else "None"
+        popups = dict(wifi_popups)
 
-    with canvas(oled_left) as draw:
-        draw.text((0, 0), "WiGLE: jleary53", fill=255)
-        draw.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
-        draw.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
-        draw.text((0,30), f"Up: {get_uptime()}", fill=255)
-        try:
-            u = psutil.disk_usage("/")
-            free = u.free / (1024**3)
-            sd = f"SD {u.percent:.0f}% {free:.1f}G"
-        except:
-            sd = "SD ERR"
-        draw.text((0,40), sd, fill=255)
-        draw.text((0,50), f"Build# {VERSION}", fill=255)
+    with canvas(oled_left) as d:
+        d.text((0, 0), "WiGLE: jleary53", fill=255)
+        d.text((0,10), f"Temp: {get_cpu_temp()}", fill=255)
+        d.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
+        d.text((0,30), f"Up: {get_uptime()}", fill=255)
+        d.text((0,40), f"IP: {get_ip()[:16]}", fill=255)
+        d.text((0,50), f"Build# {VERSION}", fill=255)
 
-    with canvas(oled_right) as draw:
+    with canvas(oled_right) as d:
         if radar_mode:
-            draw.text((0,0), "Radar", fill=255)
-            draw_radar(draw, angle, blips)
-            draw_wifi_bars(draw, w_now % 5)
-        else:
-            draw.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
-            draw.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
-            draw.text((0,20), get_ip()[:20], fill=255)
-            draw.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
-            draw.text((0,40), f"BT Device: {rand_bt[:14]}", fill=255)
-            mode = "WarPi.G Zero2W    "
-            text = mode[scroll_pos:] + mode[:scroll_pos]
-            draw.text((0,50), text[:20], fill=255)
-            scroll_pos = (scroll_pos + 1) % len(mode)
+            d.text((0,0), "WiFi Radar", fill=255)
+            draw_radar(d, angle)
 
-    angle += 0.15
+            y = 52
+            for ssid, exp in popups.items():
+                if now < exp:
+                    d.text((0, y), ssid[:20], fill=255)
+                    y -= 10
+
+        else:
+            d.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
+            d.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
+            text = "WarPi.G Zero2W    "
+            d.text((0,50), text[scroll_pos:scroll_pos+20], fill=255)
+            scroll_pos = (scroll_pos + 1) % len(text)
+
+    angle += 0.12
     time.sleep(0.2)
