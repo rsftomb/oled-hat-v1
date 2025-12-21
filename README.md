@@ -78,7 +78,7 @@ ______________________________________________________________________________
 ## Installation
 
 1. Clone the repository:
-   git clone https://github.com/rsftomb/oled-hat-v1
+   git clone https://github.com/rsftomb/warpig
    cd WarPi.G
 
 **Install Python dependencies:**
@@ -90,7 +90,7 @@ Navigate to Interface Options → I2C
 Enable I²C and reboot if prompted
 
 **Run the application:**
-sudo python3 oled-hat-v1.py
+sudo python3 warpig.py
 
 
 
