@@ -1,6 +1,38 @@
 📓 ### **WarPi.G – Patch Notes**
 _______________________________________________________________________________________
 
+## Build 1220.03
+
+### Reliability & Boot Stability
+- Improved startup reliability when launched via `systemd`
+- Added startup delay handling to ensure:
+  - I²C bus availability
+  - Wi-Fi interface readiness
+- Reduced risk of boot-time race conditions on Pi Zero 2 W
+
+### Service Behavior
+- Verified clean restart behavior under `systemd`
+- Confirmed graceful recovery on script restart without OLED lockups
+
+### Maintenance
+- Minor code formatting and consistency cleanup
+- No user-facing visual or behavioral changes
+_______________________________________________________________________________________
+
+### Build 1220.02
+
+### System & Startup
+- Updated primary Python script name from `oled-hat-v1.py` to **`warpig.py`**
+- Preserved existing `systemd` auto-start behavior via `start_oled.sh`
+- No changes required to service files or startup configuration
+
+### Internal Cleanup
+- Aligned internal naming with project branding (`WarPi.G`)
+- Removed legacy references to old script naming
+- No functional behavior changes to radar, Wi-Fi, or Bluetooth systems
+
+_______________________________________________________________________________________
+
 ### Build 1220.01
 
 ## Radar System (Major Update)
@@ -47,6 +79,7 @@ ________________________________________________________________________________
 - Prevented unbounded growth of internal radar state.
 - Reduced OLED clutter and overpopulation during long scanning sessions.
 ______________________________________________________________________________________
+
   **Build 1219.01 - Beta Prerelease**
 - Minor UI Update to Wifi/BT Counter
 - Optimization of boot sequence & UI.
