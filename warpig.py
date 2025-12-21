@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1220.03"
+VERSION = "1220.04"
 
 # =====================
 # OLED setup
@@ -59,8 +59,7 @@ bt_now = bt_total = 0
 
 wifi_seen = {}
 wifi_last_seen = {}
-wifi_blips = {}          # ssid -> (angle, r, last_hit_ts)
-wifi_popups = {}         # ssid -> expire_ts
+wifi_blips = {}          # ssid -> {angle, r, hit}
 
 seen_bt = {}
 bt_last_seen = {}
@@ -92,23 +91,17 @@ def get_uptime():
         return "?"
 
 def rssi_to_radius(rssi, max_r=26):
-    """
-    RSSI approx range:
-    -30 very close
-    -90 far
-    """
     rssi = max(-90, min(-30, rssi))
     return int(((abs(rssi) - 30) / 60) * max_r)
 
 # =====================
-# Wi-Fi scanner (RADAR SOURCE)
+# Wi-Fi scanner (radar source)
 # =====================
 def wifi_scanner():
     global wifi_now, wifi_total
 
     STALE_TIME = 15
     MAX_BLIPS = 3
-    POPUP_TIME = 3
 
     while True:
         now_ts = time.time()
@@ -121,11 +114,11 @@ def wifi_scanner():
             ).decode().splitlines()
 
             ssid = None
-            rssi = None
 
             for line in out:
                 if "ESSID" in line:
                     ssid = line.split("ESSID:")[1].replace('"','').strip()
+
                 elif "Signal level" in line and ssid:
                     try:
                         rssi = int(line.split("Signal level=")[1].split(" ")[0])
@@ -143,23 +136,20 @@ def wifi_scanner():
                             wifi_last_seen.pop(oldest, None)
 
                         wifi_blips[ssid] = {
-                            "angle": random.uniform(0, 2*math.pi),
+                            "angle": random.uniform(0, 2 * math.pi),
                             "r": rssi_to_radius(rssi),
                             "hit": 0
                         }
-                        wifi_popups[ssid] = now_ts + POPUP_TIME
 
                     ssid = None
 
         except:
             pass
 
-        # cleanup stale
-        for s in list(wifi_last_seen.keys()):
+        for s in list(wifi_last_seen):
             if now_ts - wifi_last_seen[s] > STALE_TIME:
                 wifi_last_seen.pop(s, None)
                 wifi_blips.pop(s, None)
-                wifi_popups.pop(s, None)
 
         with lock:
             wifi_now = len(current)
@@ -188,7 +178,6 @@ def bt_scanner():
                     name = parts[2] if len(parts) == 3 else "Unknown"
                     seen_bt[mac] = name
                     bt_last_seen[mac] = now
-
         except:
             pass
 
@@ -216,15 +205,16 @@ def draw_radar(draw, sweep_angle):
 
     now = time.time()
 
-    for ssid, data in wifi_blips.items():
+    with lock:
+        blips = dict(wifi_blips)
+
+    for data in blips.values():
         bx = cx + int(data["r"] * math.cos(data["angle"]))
         by = cy + int(data["r"] * math.sin(data["angle"]))
 
-        # sweep hit detection
         if abs((sweep_angle - data["angle"] + math.pi) % (2*math.pi) - math.pi) < 0.15:
             data["hit"] = now
 
-        # flash effect
         if now - data["hit"] < 0.3:
             draw.ellipse((bx-3, by-3, bx+3, by+3), fill=255)
         else:
@@ -234,7 +224,6 @@ def draw_radar(draw, sweep_angle):
 # Boot + threads
 # =====================
 show_boot_screen()
-
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 
@@ -261,7 +250,8 @@ while True:
         w_total = wifi_total
         b_now = bt_now
         b_total = bt_total
-        popups = dict(wifi_popups)
+        rand_ssid = random.choice(list(wifi_seen)) if wifi_seen else "None"
+        rand_bt   = random.choice(list(seen_bt.values())) if seen_bt else "None"
 
     with canvas(oled_left) as d:
         d.text((0, 0), "WiGLE: jleary53", fill=255)
@@ -273,25 +263,18 @@ while True:
 
     with canvas(oled_right) as d:
         if radar_mode:
-            d.text((0,0), "WiFi dB", fill=255)
+            d.text((0,0), "WiFi Radar", fill=255)
             draw_radar(d, angle)
-
-            y = 52
-            for ssid, exp in popups.items():
-                if now < exp:
-                    d.text((0, y), ssid[:20], fill=255)
-                    y -= 10
-
         else:
-            draw.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
-            draw.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
-            draw.text((0,20), get_ip()[:20], fill=255)
-            draw.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
-            draw.text((0,40), f"BT Device: {rand_bt[:14]}", fill=255)
-            mode = "WarPi.G Zero2W"
+            d.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
+            d.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
+            d.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
+            d.text((0,40), f"BT Dev: {rand_bt[:14]}", fill=255)
+
+            mode = "WarPi.G Zero2W   "
             text = mode[scroll_pos:] + mode[:scroll_pos]
-            draw.text((0,50), text[:20], fill=255)
+            d.text((0,50), text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode)
 
-    angle += 0.15
+    angle += 0.12
     time.sleep(0.2)
