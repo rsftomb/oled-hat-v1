@@ -13,7 +13,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1220.02"
+VERSION = "1220.03"
 
 # =====================
 # OLED setup
@@ -283,11 +283,15 @@ while True:
                     y -= 10
 
         else:
-            d.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
-            d.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
-            text = "WarPi.G Zero2W    "
-            d.text((0,50), text[scroll_pos:scroll_pos+20], fill=255)
-            scroll_pos = (scroll_pos + 1) % len(text)
+            draw.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
+            draw.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
+            draw.text((0,20), get_ip()[:20], fill=255)
+            draw.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
+            draw.text((0,40), f"BT Device: {rand_bt[:14]}", fill=255)
+            mode = "WarPi.G Zero2W"
+            text = mode[scroll_pos:] + mode[:scroll_pos]
+            draw.text((0,50), text[:20], fill=255)
+            scroll_pos = (scroll_pos + 1) % len(mode)
 
-    angle += 0.12
+    angle += 0.15
     time.sleep(0.2)
