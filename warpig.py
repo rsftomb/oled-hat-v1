@@ -5,6 +5,8 @@ import subprocess
 import threading
 import random
 import math
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import timedelta
 from luma.core.interface.serial import i2c
 from luma.oled.device import ssd1306
@@ -13,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1221.01"
+VERSION = "1222.01"
 
 # =====================
 # OLED setup
@@ -59,7 +61,7 @@ bt_now = bt_total = 0
 
 wifi_seen = {}
 wifi_last_seen = {}
-wifi_blips = {}          # ssid -> {angle, r, hit}
+wifi_blips = {}
 
 seen_bt = {}
 bt_last_seen = {}
@@ -93,6 +95,40 @@ def get_uptime():
 def rssi_to_radius(rssi, max_r=26):
     rssi = max(-90, min(-30, rssi))
     return int(((abs(rssi) - 30) / 60) * max_r)
+
+# =====================
+# Local API server
+# =====================
+def api_server():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/status":
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            with lock:
+                payload = {
+                    "version": VERSION,
+                    "wifi_now": wifi_now,
+                    "wifi_total": wifi_total,
+                    "wifi_seen": list(wifi_seen.keys()),
+                    "bt_now": bt_now,
+                    "bt_total": bt_total,
+                    "bt_seen": list(seen_bt.values()),
+                    "ip": get_ip(),
+                    "uptime": get_uptime(),
+                    "cpu": psutil.cpu_percent()
+                }
+
+            data = json.dumps(payload).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    HTTPServer(("127.0.0.1", 7070), Handler).serve_forever()
 
 # =====================
 # Wi-Fi scanner (radar source)
@@ -226,6 +262,7 @@ def draw_radar(draw, sweep_angle):
 show_boot_screen()
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
+threading.Thread(target=api_server, daemon=True).start()
 
 # =====================
 # Main loop
