@@ -259,18 +259,18 @@ while True:
         d.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         d.text((0,30), f"Up: {get_uptime()}", fill=255)
         d.text((0,40), f"IP: {get_ip()[:16]}", fill=255)
-        d.text((0,50), f"Build # {VERSION}", fill=255)
+        d.text((0,50), f"Build: {VERSION}", fill=255)
 
     with canvas(oled_right) as d:
         if radar_mode:
-            d.text((0,0), "WiFi Radar", fill=255)
+            d.text((0,0), "WiFi -dB", fill=255)
             draw_radar(d, angle)
         else:
             d.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
             d.text((0,10), f"BT Now:{b_now} Tot:{b_total}", fill=255)
             d.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
             d.text((0,40), f"BT Dev: {rand_bt[:14]}", fill=255)
-
+            d.text((0,20), get_ip()[:20], fill=255)
             mode = "WarPi.G Zero2W   "
             text = mode[scroll_pos:] + mode[:scroll_pos]
             d.text((0,50), text[:20], fill=255)
