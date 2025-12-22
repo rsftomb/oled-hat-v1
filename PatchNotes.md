@@ -1,6 +1,13 @@
 📓 ### **WarPi.G – Patch Notes**
 _______________________________________________________________________________________
 
+
+### Build 1221.01
+
+### Maintenance
+- Minor UI code formatting and consistency cleanup
+_______________________________________________________________________________________
+
 ## Build 1220.03
 
 ### Reliability & Boot Stability
