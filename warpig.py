@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1222.01"
+VERSION = "1222.02"
 
 # =====================
 # OLED setup
@@ -256,6 +256,40 @@ def draw_radar(draw, sweep_angle):
         else:
             draw.ellipse((bx-2, by-2, bx+2, by+2), outline=255)
 
+def start_web_status_server():
+    class StatusHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/status":
+                self.send_response(404)
+                self.end_headers()
+                return
+
+            with lock:
+                data = {
+                    "version": VERSION,
+                    "wifi_now": wifi_now,
+                    "wifi_total": wifi_total,
+                    "bt_now": bt_now,
+                    "bt_total": bt_total,
+                    "ip": get_ip(),
+                    "cpu": psutil.cpu_percent(),
+                    "temp": get_cpu_temp(),
+                    "uptime": get_uptime(),
+                }
+
+            payload = json.dumps(data).encode()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, format, *args):
+            return
+
+    HTTPServer(("0.0.0.0", 8081), StatusHandler).serve_forever()
+
 # =====================
 # Boot + threads
 # =====================
@@ -263,6 +297,8 @@ show_boot_screen()
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
 threading.Thread(target=api_server, daemon=True).start()
+threading.Thread(target=start_web_status_server, daemon=True).start()
+
 
 # =====================
 # Main loop
