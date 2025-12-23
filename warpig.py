@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1222.02"
+VERSION = "1222.03"
 
 # =====================
 # OLED setup
@@ -97,10 +97,10 @@ def rssi_to_radius(rssi, max_r=26):
     return int(((abs(rssi) - 30) / 60) * max_r)
 
 # =====================
-# Local API server
+# Web status server
 # =====================
-def api_server():
-    class Handler(BaseHTTPRequestHandler):
+def start_web_status_server():
+    class StatusHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path != "/status":
                 self.send_response(404)
@@ -108,7 +108,7 @@ def api_server():
                 return
 
             with lock:
-                payload = {
+                data = {
                     "version": VERSION,
                     "wifi_now": wifi_now,
                     "wifi_total": wifi_total,
@@ -117,18 +117,26 @@ def api_server():
                     "bt_total": bt_total,
                     "bt_seen": list(seen_bt.values()),
                     "ip": get_ip(),
+                    "cpu": psutil.cpu_percent(),
+                    "temp": get_cpu_temp(),
                     "uptime": get_uptime(),
-                    "cpu": psutil.cpu_percent()
                 }
 
-            data = json.dumps(payload).encode()
+            payload = json.dumps(data).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(data)
+            self.wfile.write(payload)
 
-    HTTPServer(("127.0.0.1", 7070), Handler).serve_forever()
+        # Disable logging to console
+        def log_message(self, format, *args):
+            return
+
+    try:
+        HTTPServer(("0.0.0.0", 8081), StatusHandler).serve_forever()
+    except Exception as e:
+        print("Web server failed to start:", e)
 
 # =====================
 # Wi-Fi scanner (radar source)
@@ -232,7 +240,6 @@ def bt_scanner():
 # =====================
 def draw_radar(draw, sweep_angle):
     cx, cy, r = 70, 32, 28
-
     draw.ellipse((cx-r, cy-r, cx+r, cy+r), outline=255)
 
     sx = cx + int(r * math.cos(sweep_angle))
@@ -240,7 +247,6 @@ def draw_radar(draw, sweep_angle):
     draw.line((cx, cy, sx, sy), fill=255)
 
     now = time.time()
-
     with lock:
         blips = dict(wifi_blips)
 
@@ -256,49 +262,13 @@ def draw_radar(draw, sweep_angle):
         else:
             draw.ellipse((bx-2, by-2, bx+2, by+2), outline=255)
 
-def start_web_status_server():
-    class StatusHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path != "/status":
-                self.send_response(404)
-                self.end_headers()
-                return
-
-            with lock:
-                data = {
-                    "version": VERSION,
-                    "wifi_now": wifi_now,
-                    "wifi_total": wifi_total,
-                    "bt_now": bt_now,
-                    "bt_total": bt_total,
-                    "ip": get_ip(),
-                    "cpu": psutil.cpu_percent(),
-                    "temp": get_cpu_temp(),
-                    "uptime": get_uptime(),
-                }
-
-            payload = json.dumps(data).encode()
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
-
-        def log_message(self, format, *args):
-            return
-
-    HTTPServer(("0.0.0.0", 8081), StatusHandler).serve_forever()
-
 # =====================
 # Boot + threads
 # =====================
 show_boot_screen()
 threading.Thread(target=wifi_scanner, daemon=True).start()
 threading.Thread(target=bt_scanner, daemon=True).start()
-threading.Thread(target=api_server, daemon=True).start()
 threading.Thread(target=start_web_status_server, daemon=True).start()
-
 
 # =====================
 # Main loop
