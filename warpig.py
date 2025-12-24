@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1222.03"
+VERSION = "1223.01 Web"
 
 # =====================
 # OLED setup
