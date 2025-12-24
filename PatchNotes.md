@@ -1,6 +1,29 @@
 📓 ### **WarPi.G – Patch Notes**
 _______________________________________________________________________________________
 
+### Build 1223.1
+
+- Added WebUI index.html
+  - Expanded telemetry to include:
+- Live WiFi SSID list
+- Live Bluetooth device name list
+- Sublist containers for SSIDs and BT devices scrollable with styled scrollbars.
+- UI now uses consistent two-tier display: main metrics at top, expandable sublists below.
+  - Minor CSS adjustments for mobile-friendliness:
+- Flexible width (90% of viewport, max-width 400px)
+- Font-size optimized for readability on small screens
+- Refresh interval remains 1 second for real-time updates.
+
+### Build 1222.3
+
+- CPU chip icon & finalized layout refinements
+- Added CPU chip icon to match WiFi/Bluetooth visual styling.
+- Ensured all system metrics (CPU, WiFi, Bluetooth) have consistent icon + label layout.
+- Optimized flexbox spacing for smaller screens.
+  - Header and footer styling finalized:
+- Fixed positions
+- Green-on-black aesthetic
+- Disclaimer added to footer for legal clarity.
 
 ### Build 1221.01
 
