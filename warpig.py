@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1223.01 Web"
+VERSION = "1223.02 WebUI"
 
 # =====================
 # OLED setup
@@ -35,7 +35,7 @@ def show_boot_screen():
         ("Init WiFi..", 45),
         ("Init BT...", 60),
         ("Booting WarPi.G....", 85),
-        ("Logging Started.....", 100),
+        ("Starting WebUI.....", 100),
     ]
 
     for label, pct in stages:
