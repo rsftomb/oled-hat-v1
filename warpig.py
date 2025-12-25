@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1223.02 WebUI"
+VERSION = "1225.01 Tusk"
 
 # =====================
 # OLED setup
@@ -48,7 +48,7 @@ def show_boot_screen():
 
             with canvas(oled_right) as d:
                 d.text((0, 20), "Updating...", fill=255)
-                d.text((0, 36), f"Build# {VERSION}", fill=255)
+                d.text((0, 36), f"Boar# {VERSION}", fill=255)
 
             time.sleep(0.04)
     time.sleep(0.4)
@@ -303,11 +303,11 @@ while True:
         d.text((0,20), f"CPU: {psutil.cpu_percent():.1f}%", fill=255)
         d.text((0,30), f"Up: {get_uptime()}", fill=255)
         d.text((0,40), f"IP: {get_ip()[:16]}", fill=255)
-        d.text((0,50), f"Build: {VERSION}", fill=255)
+        d.text((0,50), f"Boar: {VERSION}", fill=255)
 
     with canvas(oled_right) as d:
         if radar_mode:
-            d.text((0,0), "WiFi -dB", fill=255)
+            d.text((0,0), "Scanning...", fill=255)
             draw_radar(d, angle)
         else:
             d.text((0,0), f"WiFi Now:{w_now} Tot:{w_total}", fill=255)
