@@ -1,7 +1,12 @@
 📓 ### **WarPi.G – Patch Notes**
 _______________________________________________________________________________________
 
-### Build 1223.1
+### Build 1223.02
+
+- Improved IP handling for WebUI
+_______________________________________________________________________________________
+
+### Build 1223.01
 
 - Added WebUI index.html
   - Expanded telemetry to include:
@@ -13,6 +18,7 @@ ________________________________________________________________________________
 - Flexible width (90% of viewport, max-width 400px)
 - Font-size optimized for readability on small screens
 - Refresh interval remains 1 second for real-time updates.
+_______________________________________________________________________________________
 
 ### Build 1222.3
 
