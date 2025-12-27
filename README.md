@@ -1,4 +1,4 @@
-# WarPi.G
+# 🐗 WarPi.G
 
 **WarPi.G** is a dual-OLED situational awareness display designed for the Raspberry Pi Zero 2 W.  
 It visualizes nearby RF activity with a live radar-style interface, system telemetry, and network statistics in a compact, always-on format.
