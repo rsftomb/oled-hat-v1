@@ -1,5 +1,5 @@
 ### **📓WarPi.G – Patch Notes**
-### **Initial Release (Boar# 1225.01 Tusk)**
+### **Initial Release (Boar# 1225.01 Tusk) Beta**
 _______________________________________________________________________________________
 
 ## **Features**
