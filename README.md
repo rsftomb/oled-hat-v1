@@ -4,6 +4,8 @@
 It visualizes nearby RF activity with a live radar-style interface, system telemetry, and network statistics in a compact, always-on format.
 
 ## Features
+- WarPi.G WebUI(Optional)
+[WebUI]((https://github.com/rsftomb/warpig-web))
 
 ### Wi-Fi Radar (Primary Display)
 - Live **radar-style visualization** of nearby Wi-Fi access points
