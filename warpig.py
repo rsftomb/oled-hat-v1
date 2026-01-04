@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "1225.01 Tusk"
+VERSION = "010226.01 Tusk"
 
 # =====================
 # OLED setup
