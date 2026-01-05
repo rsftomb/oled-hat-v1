@@ -15,7 +15,7 @@ from luma.core.render import canvas
 # =====================
 # Version
 # =====================
-VERSION = "010226.01 Tusk"
+VERSION = "0126.05 Tusk BETA"
 
 # =====================
 # OLED setup
@@ -315,7 +315,7 @@ while True:
             d.text((0,30), f"SSID: {rand_ssid[:14]}", fill=255)
             d.text((0,40), f"BT Dev: {rand_bt[:14]}", fill=255)
             d.text((0,20), get_ip()[:20], fill=255)
-            mode = "WarPi.G Zero2W   "
+            mode = "Scanning for WiFi and Bluetooth devices...   "
             text = mode[scroll_pos:] + mode[:scroll_pos]
             d.text((0,50), text[:20], fill=255)
             scroll_pos = (scroll_pos + 1) % len(mode)
